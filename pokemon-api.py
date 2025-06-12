@@ -39,11 +39,11 @@ def check_card_name(card_name):
     with open(card_db_file, "r") as f:
         reader = csv.reader(f)
         pandas_df = pd.DataFrame(reader, columns=["card name", "card id", "card number", "card image url"])
+        #print(pandas_df["card name"].values)
         return card_name in pandas_df["card name"].values
 
 def search_card(card_name):
     # open the card_names.txt file to search a particular card name. name can yield multiple rows
-    
     with open(card_db_file, "r") as f:
         reader = csv.reader(f)
         pandas_df = pd.DataFrame(reader, columns=["card name", "card id", "card number", "card image url"])
@@ -58,10 +58,15 @@ if __name__ == "__main__":
     # from the text, find the card name. Normally the card name is in the first or the second line.
     # so parse the first two lines and check one by one if the card name is in the card_db file. If not, search the next line.
     card_name = text.split("\n")[0]
+    # remove any trailing special characters
+    card_name = card_name.strip()
     print(card_name)
     if not check_card_name(card_name):
         card_name = text.split("\n")[1]
-    print(card_name)
+        print(card_name)
+        # remove any trailing special character
+        card_name = card_name.strip()
+    
     if not check_card_name(card_name):
         print("Card name not found in the card_db file")
         exit(1)
