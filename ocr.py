@@ -1,7 +1,12 @@
 import requests
 from PIL import Image
 import json
+import os
+from dotenv import load_dotenv
 
+#load OCR_API_KEY from .env
+load_dotenv()
+OCR_API_KEY = os.getenv("OCR_API_KEY")
 
 def ocr_image(image_path):
     """
@@ -14,7 +19,7 @@ def ocr_image(image_path):
         str: Extracted text from the image
     """
     url = "https://api.ocr.space/parse/image"
-    api_key = "K82850124088957"
+    api_key = OCR_API_KEY
 
     OCREngine = "2"
     
