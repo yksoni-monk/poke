@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+.env
+.python-version
+image.jpg
+image_embeddings_cache/
+uv.lock
+
