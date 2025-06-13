@@ -1,5 +1,4 @@
 import numpy as np
-import faiss
 import json
 import os
 from PIL import Image
@@ -83,7 +82,7 @@ def get_image_embedding(image_content, use_cache=True):
 
 def embedding_image_similarity(image_path):
     """
-    Perform similarity search to find the top 3 matching image URLs for a given image.
+    Perform similarity search to find the top 3 matching image URLs for a given image using NumPy.
     
     Args:
         image_path (str): Path to the query image (local path or URL).
@@ -106,7 +105,7 @@ def embedding_image_similarity(image_path):
 
     try:
         if image_path.startswith(('http://', 'https://')):
-            response = requests.get(image_path, Jonadnottimeout=10)
+            response = requests.get(image_path, timeout=10)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
             img.verify()
@@ -116,7 +115,6 @@ def embedding_image_similarity(image_path):
             img.verify()
             img = Image.open(image_path)  # Reopen after verify
 
-        img = img.convert("RGB")
         query_embedding = get_image_embedding(img)
         query_embedding = np.array(query_embedding, dtype=np.float32).reshape(1, -1)
 
@@ -126,16 +124,17 @@ def embedding_image_similarity(image_path):
     if query_embedding.shape[1] != embeddings.shape[1]:
         raise ValueError("Query embedding dimension does not match database embeddings.")
 
-    dim = embeddings.shape[1]
-    index = faiss.IndexFlatIP(dim)
-    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
-    index.add(embeddings)
-
+    # Compute cosine similarities (inner product for normalized vectors)
+    similarities = np.dot(embeddings, query_embedding.T).flatten()
+    
+    # Get top 3 indices
     k = 3
-    distances, indices = index.search(query_embedding, k)
-
-    top_urls = [image_metadata[idx]["url"] for idx in indices[0]]
-
+    top_indices = np.argsort(similarities)[-k:][::-1]  # Descending order
+    top_similarities = similarities[top_indices]
+    
+    # Retrieve top 3 image URLs
+    top_urls = [image_metadata[idx]["url"] for idx in top_indices]
+    print(f"Top 3 URLs: {top_urls}")
     return top_urls
 
 def create_embeddings(card_db_file):
@@ -163,7 +162,6 @@ def create_embeddings(card_db_file):
             img = Image.open(BytesIO(response.content))
             img.verify()
             img = Image.open(BytesIO(response.content))  # Reopen after verify
-            img = img.convert("RGB")
 
             embedding = get_image_embedding(img)
             embedding = np.array(embedding, dtype=np.float32).reshape(1, -1)
@@ -177,6 +175,8 @@ def create_embeddings(card_db_file):
 
     if embeddings:
         embeddings = np.vstack(embeddings)
+        # Normalize embeddings (same as FAISS)
+        embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
         np.save(embedding_file, embeddings)
         with open(metadata_file, 'w') as f:
             json.dump(image_metadata, f)
@@ -196,7 +196,6 @@ def get_image_similarity(image1_path, image2_path):
         float: Cosine similarity score (-1 to 1).
     """
     try:
-        # Load and process first image
         if image1_path.startswith(('http://', 'https://')):
             response = requests.get(image1_path, timeout=10)
             response.raise_for_status()
@@ -208,10 +207,8 @@ def get_image_similarity(image1_path, image2_path):
             img1.verify()
             img1 = Image.open(image1_path)
 
-        img1 = img1.convert("RGB")
         embedding1 = get_image_embedding(img1)
 
-        # Load and process second image
         if image2_path.startswith(('http://', 'https://')):
             response = requests.get(image2_path, timeout=10)
             response.raise_for_status()
@@ -223,10 +220,8 @@ def get_image_similarity(image1_path, image2_path):
             img2.verify()
             img2 = Image.open(image2_path)
 
-        img2 = img2.convert("RGB")
         embedding2 = get_image_embedding(img2)
 
-        # Compute cosine similarity
         similarity = np.dot(embedding1, embedding2).item()
 
         print(f"Image similarity score: {similarity:.4f}")

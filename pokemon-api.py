@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # for each image in the card_db, create a vector embedding and save it to a file
     create_embeddings(card_db_file)
-
+    print("Embeddings created")
     # now use faiss for similarity search of image file at 'image_path' using the embeddings.npy file
     # first load the embeddings.npy file
     embedding_image_similarity(image_path)
