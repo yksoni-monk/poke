@@ -1,7 +1,7 @@
 import numpy as np
 import json
 import os
-from PIL import Image
+from PIL import Image, ImageEnhance
 import requests
 from io import BytesIO
 import torch
@@ -23,10 +23,40 @@ class ImageEmbeddingModel:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-            cls._instance.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(cls._instance.device)
-            cls._instance.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)
+            cls._instance.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(cls._instance.device)
+            cls._instance.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14", use_fast=False)
             cls._instance.cache_dir = CACHE_DIR
         return cls._instance
+
+def preprocess_image(image):
+    """
+    Preprocess image for CLIP: crop borders, resize, and sharpen.
+
+    Args:
+        image (PIL.Image.Image): Input image.
+
+    Returns:
+        PIL.Image.Image: Preprocessed image.
+    """
+    # Convert to RGB
+    image = image.convert("RGB")
+    
+    # Crop 10% from each edge
+    width, height = image.size
+    left = width * 0.1
+    top = height * 0.1
+    right = width * 0.9
+    bottom = height * 0.9
+    image = image.crop((left, top, right, bottom))
+    
+    # Resize to 224x224 (CLIP input size)
+    image = image.resize((224, 224), Image.Resampling.LANCZOS)
+    
+    # Apply slight sharpening
+    enhancer = ImageEnhance.Sharpness(image)
+    image = enhancer.enhance(1.5)  # Moderate sharpening
+    
+    return image
 
 def get_image_embedding(image_content, use_cache=True):
     """
@@ -37,7 +67,7 @@ def get_image_embedding(image_content, use_cache=True):
         use_cache (bool): Whether to use caching for embeddings.
 
     Returns:
-        numpy.ndarray: Normalized 1D embedding (e.g., 512D for CLIP).
+        numpy.ndarray: Normalized 1D embedding (e.g., 768D for CLIP).
     """
     if not isinstance(image_content, Image.Image):
         raise ValueError("image_content must be a PIL Image object")
@@ -58,7 +88,8 @@ def get_image_embedding(image_content, use_cache=True):
                 with open(cache_path, 'rb') as f:
                     return pickle.load(f)
 
-        image = image_content.convert("RGB")
+        # Preprocess image
+        image = preprocess_image(image_content)
         inputs = processor(images=image, return_tensors="pt", padding=True).to(device)
 
         with torch.no_grad():
@@ -82,13 +113,13 @@ def get_image_embedding(image_content, use_cache=True):
 
 def embedding_image_similarity(image_path):
     """
-    Perform similarity search to find the top 3 matching image URLs for a given image using NumPy.
+    Perform similarity search to find the top 10 matching image URLs for a given image using NumPy.
     
     Args:
         image_path (str): Path to the query image (local path or URL).
     
     Returns:
-        list: Top 3 matching image URLs from the database.
+        list: Top 10 matching image URLs from the database.
     """
     embedding_file = "embeddings.npy"
     metadata_file = "image_metadata.json"
@@ -127,12 +158,12 @@ def embedding_image_similarity(image_path):
     # Compute cosine similarities (inner product for normalized vectors)
     similarities = np.dot(embeddings, query_embedding.T).flatten()
     
-    # Get top k indices
+    # Get top 10 indices
     k = 10
     top_indices = np.argsort(similarities)[-k:][::-1]  # Descending order
     top_similarities = similarities[top_indices]
     
-    # Retrieve top k image URLs
+    # Retrieve top 10 image URLs
     top_urls = [image_metadata[idx]["url"] for idx in top_indices]
     print(f"Top {k} URLs: {top_urls}")
     return top_urls
@@ -175,7 +206,7 @@ def create_embeddings(card_db_file):
 
     if embeddings:
         embeddings = np.vstack(embeddings)
-        # Normalize embeddings (same as FAISS)
+        # Normalize embeddings
         embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
         np.save(embedding_file, embeddings)
         with open(metadata_file, 'w') as f:
