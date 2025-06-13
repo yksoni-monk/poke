@@ -127,14 +127,14 @@ def embedding_image_similarity(image_path):
     # Compute cosine similarities (inner product for normalized vectors)
     similarities = np.dot(embeddings, query_embedding.T).flatten()
     
-    # Get top 3 indices
-    k = 3
+    # Get top k indices
+    k = 10
     top_indices = np.argsort(similarities)[-k:][::-1]  # Descending order
     top_similarities = similarities[top_indices]
     
-    # Retrieve top 3 image URLs
+    # Retrieve top k image URLs
     top_urls = [image_metadata[idx]["url"] for idx in top_indices]
-    print(f"Top 3 URLs: {top_urls}")
+    print(f"Top {k} URLs: {top_urls}")
     return top_urls
 
 def create_embeddings(card_db_file):
