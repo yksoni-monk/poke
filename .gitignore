@@ -15,3 +15,6 @@ image.jpg
 image_embeddings_cache/
 uv.lock
 
+embedding_cache/
+embeddings.npy
+image_metadata.json

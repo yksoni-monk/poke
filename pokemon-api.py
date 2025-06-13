@@ -1,8 +1,9 @@
 import csv
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 import requests
-from image_similarity import get_image_similarity
+from image_similarity import get_image_embedding, get_image_similarity, create_embeddings, embedding_image_similarity
 from pokemontcgsdk import Card
 from pokemontcgsdk import Set
 from pokemontcgsdk import Type
@@ -12,6 +13,9 @@ from pokemontcgsdk import Rarity
 from pokemontcgsdk import RestClient
 import os
 from ocr import ocr_image
+import json
+from PIL import Image
+from io import BytesIO
 
 
 # load POKEMON_API_KEY from .env
@@ -51,9 +55,31 @@ def search_card(card_name):
         #print(df)
         return df
 
+
+
+
+
+
+
 if __name__ == "__main__":
     create_card_db()
     image_path = "/Users/yksoni/Downloads/pokemon4.jpeg"
+
+    # for each image in the card_db, create a vector embedding and save it to a file
+    create_embeddings(card_db_file)
+
+    # now use faiss for similarity search of image file at 'image_path' using the embeddings.npy file
+    # first load the embeddings.npy file
+    embedding_image_similarity(image_path)
+
+    
+    exit(0)
+    #first open the card_db files and get the panda dataframe
+    df = pd.read_csv(card_db_file)
+    # open embeddings.npy files and store the embeddings there
+    
+
+
     text = ocr_image(image_path)
     # from the text, find the card name. Normally the card name is in the first or the second line.
     # so parse the first two lines and check one by one if the card name is in the card_db file. If not, search the next line.
