@@ -74,7 +74,7 @@ const Index = () => {
         {/* Main Content */}
         <div className="max-w-md mx-auto">
           {!capturedImage && !cardData && (
-            <CameraCapture onImageCapture={(img) => console.log('Image captured:', img.length)} />
+            <CameraCapture onImageCapture={handleImageCapture} />
           )}
           
           {capturedImage && !cardData && (
