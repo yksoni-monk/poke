@@ -27,13 +27,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     try {
       console.log('Starting camera...');
       
-      // Simplified constraints that work better on mobile
       const constraints = {
-        video: {
-          facingMode: 'environment', // Use back camera on mobile
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
+        video: true,
         audio: false
       };
       
@@ -48,24 +43,20 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         const video = videoRef.current;
         video.srcObject = mediaStream;
         
-        // Simple approach - just wait for the video to start playing
-        video.onloadedmetadata = () => {
-          console.log('Video metadata loaded');
-          video.play().then(() => {
-            console.log('Video playing, setting ready state');
-            setIsVideoReady(true);
-          }).catch(err => {
-            console.error('Error playing video:', err);
-            // Set ready anyway for mobile compatibility
-            setIsVideoReady(true);
-          });
+        // Wait for video to be ready and playing
+        const handleCanPlay = () => {
+          console.log('Video can play, setting ready state');
+          setIsVideoReady(true);
         };
         
-        // Fallback timeout
-        setTimeout(() => {
-          console.log('Timeout reached, forcing ready state');
+        video.addEventListener('canplay', handleCanPlay, { once: true });
+        
+        // Auto-play the video
+        video.play().catch(err => {
+          console.error('Error playing video:', err);
+          // Even if autoplay fails, set ready state
           setIsVideoReady(true);
-        }, 2000);
+        });
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
@@ -96,7 +87,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
 
     try {
-      // Use actual video dimensions or fallback
       const width = video.videoWidth || 640;
       const height = video.videoHeight || 480;
       
@@ -112,7 +102,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       
       onImageCapture(imageDataUrl);
       
-      // Mobile haptic feedback
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
       }
@@ -152,7 +141,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
       <div className="relative">
-        {/* Camera Viewfinder */}
         <div className="relative aspect-[4/3] bg-black rounded-t-2xl overflow-hidden">
           <video
             ref={videoRef}
@@ -171,7 +159,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
             </div>
           )}
           
-          {/* Card positioning guide */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="border-2 border-white border-dashed rounded-lg w-72 h-44 flex items-center justify-center">
               <div className="text-white text-center">
@@ -182,7 +169,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           </div>
         </div>
         
-        {/* Controls */}
         <div className="p-6 bg-gradient-to-t from-gray-50 to-white">
           <div className="flex justify-center">
             <button
@@ -198,7 +184,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         </div>
       </div>
       
-      {/* Hidden canvas for image capture */}
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );
