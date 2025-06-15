@@ -27,15 +27,19 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     try {
       console.log('Starting camera...');
       
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      // Simplified constraints that work better on mobile
+      const constraints = {
         video: {
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 }
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         },
         audio: false
-      });
+      };
       
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('Camera stream obtained');
+      
       setStream(mediaStream);
       setHasPermission(true);
       setError('');
@@ -44,34 +48,24 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         const video = videoRef.current;
         video.srcObject = mediaStream;
         
-        // Set video ready immediately when stream is obtained
-        // and add a timeout fallback
-        const readyTimer = setTimeout(() => {
-          console.log('Forcing video ready state after timeout');
-          setIsVideoReady(true);
-        }, 1000);
-        
-        const handleVideoReady = () => {
-          console.log('Video ready event fired, dimensions:', video.videoWidth || 'unknown', 'x', video.videoHeight || 'unknown');
-          clearTimeout(readyTimer);
-          setIsVideoReady(true);
+        // Simple approach - just wait for the video to start playing
+        video.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          video.play().then(() => {
+            console.log('Video playing, setting ready state');
+            setIsVideoReady(true);
+          }).catch(err => {
+            console.error('Error playing video:', err);
+            // Set ready anyway for mobile compatibility
+            setIsVideoReady(true);
+          });
         };
         
-        // Multiple event listeners for better compatibility
-        video.addEventListener('loadedmetadata', handleVideoReady);
-        video.addEventListener('canplay', handleVideoReady);
-        video.addEventListener('playing', handleVideoReady);
-        video.addEventListener('loadeddata', handleVideoReady);
-        
-        // Force play and set ready state
-        video.play().then(() => {
-          console.log('Video playing successfully');
-          handleVideoReady();
-        }).catch(err => {
-          console.error('Error playing video:', err);
-          // Still set ready state even if play fails
-          handleVideoReady();
-        });
+        // Fallback timeout
+        setTimeout(() => {
+          console.log('Timeout reached, forcing ready state');
+          setIsVideoReady(true);
+        }, 2000);
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
@@ -85,7 +79,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   };
 
   const captureImage = () => {
-    console.log('Attempting to capture image...');
+    console.log('Capturing image...');
     
     if (!videoRef.current || !canvasRef.current) {
       console.error('Video or canvas ref not available');
@@ -102,25 +96,23 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
 
     try {
-      // Use video dimensions or fallback to client dimensions
-      const width = video.videoWidth || video.clientWidth || 640;
-      const height = video.videoHeight || video.clientHeight || 480;
+      // Use actual video dimensions or fallback
+      const width = video.videoWidth || 640;
+      const height = video.videoHeight || 480;
+      
+      console.log(`Capturing: ${width}x${height}`);
       
       canvas.width = width;
       canvas.height = height;
       
-      console.log(`Capturing image: ${width}x${height}`);
-      
-      // Draw the video frame to canvas
       ctx.drawImage(video, 0, 0, width, height);
       
-      // Convert to data URL
-      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      console.log('Image captured successfully, data URL length:', imageDataUrl.length);
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      console.log('Image captured, length:', imageDataUrl.length);
       
       onImageCapture(imageDataUrl);
       
-      // Add haptic feedback on mobile
+      // Mobile haptic feedback
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
       }
@@ -179,7 +171,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
             </div>
           )}
           
-          {/* Overlay guides - show even if video not ready for better UX */}
+          {/* Card positioning guide */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="border-2 border-white border-dashed rounded-lg w-72 h-44 flex items-center justify-center">
               <div className="text-white text-center">
