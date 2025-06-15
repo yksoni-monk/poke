@@ -1,5 +1,6 @@
-
 import { CardData, ScanResult } from '../types/card';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -44,34 +45,39 @@ const mockCards: CardData[] = [
 export class CardApiService {
   static async scanCard(imageBlob: Blob): Promise<ScanResult> {
     try {
-      // Simulate network delay
-      await delay(1500 + Math.random() * 1000);
+      // Create form data to send the image
+      const formData = new FormData();
+      formData.append('image', imageBlob, 'card.jpg');
+
+      // Send the image to the backend
+      const response = await fetch(`${API_BASE_URL}/scan-card`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      // In a real implementation, you would:
-      // 1. Convert the blob to the format your backend expects
-      // 2. Send the image to your AI similarity algorithm
-      // 3. Parse the response
-      
-      // For now, randomly return one of the mock cards
-      const randomCard = mockCards[Math.floor(Math.random() * mockCards.length)];
-      
-      // Simulate occasional failures for testing
-      if (Math.random() < 0.1) {
+      if (!data.success) {
         return {
           success: false,
-          error: "Could not identify the card. Please try again with better lighting."
+          error: data.error || 'Failed to identify card'
         };
       }
-      
+
       return {
         success: true,
-        cardData: randomCard
+        cardData: data.cardData
       };
     } catch (error) {
       console.error('Error scanning card:', error);
       return {
         success: false,
-        error: "Network error. Please check your connection and try again."
+        error: error instanceof Error ? error.message : "Network error. Please check your connection and try again."
       };
     }
   }

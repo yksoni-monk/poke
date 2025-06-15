@@ -1,13 +1,19 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CameraCapture from '../components/CameraCapture';
 import CardDetails from '../components/CardDetails';
 import { CardData } from '../types/card';
+import { CardApiService } from '../services/cardApi';
 
 const Index = () => {
+  console.log('Index component rendering');
+
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    console.log('Index component mounted');
+  }, []);
 
   const handleImageCapture = (imageDataUrl: string) => {
     setCapturedImage(imageDataUrl);
@@ -18,29 +24,25 @@ const Index = () => {
     
     setIsLoading(true);
     try {
-      // Convert data URL to blob for API call
-      const response = await fetch(capturedImage);
-      const blob = await response.blob();
+      // Convert data URL to blob using the CardApiService utility
+      const imageBlob = CardApiService.dataURLToBlob(capturedImage);
       
-      // Simulate API call - replace with your actual backend
-      const mockResult: CardData = {
-        name: "Charizard",
-        number: "4/102",
-        set: "Base Set",
-        rarity: "Rare Holo",
-        price: "$350.00",
-        priceRange: "$300 - $400",
-        condition: "Near Mint",
-        imageUrl: "https://images.pokemontcg.io/base1/4_hires.png",
-        description: "A legendary Fire-type Pokémon card from the original Base Set."
-      };
+      // Call the actual API service
+      const result = await CardApiService.scanCard(imageBlob);
       
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to scan card');
+      }
       
-      setCardData(mockResult);
+      if (result.cardData) {
+        setCardData(result.cardData);
+      } else {
+        throw new Error('No card data received');
+      }
     } catch (error) {
       console.error('Error scanning card:', error);
+      // You might want to show an error message to the user here
+      alert(error instanceof Error ? error.message : 'Failed to scan card. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +74,7 @@ const Index = () => {
         {/* Main Content */}
         <div className="max-w-md mx-auto">
           {!capturedImage && !cardData && (
-            <CameraCapture onImageCapture={handleImageCapture} />
+            <CameraCapture onImageCapture={(img) => console.log('Image captured:', img.length)} />
           )}
           
           {capturedImage && !cardData && (
