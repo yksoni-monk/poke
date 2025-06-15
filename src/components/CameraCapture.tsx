@@ -164,6 +164,29 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       console.log(`Display: ${displayWidth}x${displayHeight}`);
       console.log(`Intrinsic: ${intrinsicWidth}x${intrinsicHeight}`);
 
+      // Calculate focus area in display coordinates
+      const focusWidthDisplay = displayWidth * FOCUS_AREA_WIDTH;
+      const focusHeightDisplay = displayHeight * FOCUS_AREA_HEIGHT;
+      const focusXDisplay = (displayWidth - focusWidthDisplay) / 2;
+      const focusYDisplay = (displayHeight - focusHeightDisplay) / 2;
+
+      // Log focus area
+      console.log(`Focus area (display): ${focusXDisplay},${focusYDisplay} ${focusWidthDisplay}x${focusHeightDisplay}`);
+
+      // Calculate scaling due to object-cover
+      const scale = displayHeight / intrinsicHeight; // Video scaled to match display height
+      const scaledIntrinsicWidth = intrinsicWidth * scale;
+      const offsetX = (scaledIntrinsicWidth - displayWidth) / 2; // Horizontal crop
+
+      // Map focus area to intrinsic coordinates
+      const focusX = focusXDisplay / scale + offsetX / scale;
+      const focusY = focusYDisplay / scale;
+      const focusWidth = focusWidthDisplay / scale;
+      const focusHeight = focusHeightDisplay / scale;
+
+      // Log intrinsic focus area
+      console.log(`Focus area (intrinsic): ${focusX},${focusY} ${focusWidth}x${focusHeight}`);
+
       // Set canvas to intrinsic size
       canvas.width = intrinsicWidth;
       canvas.height = intrinsicHeight;
@@ -171,11 +194,16 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       // Capture full intrinsic video frame
       ctx.drawImage(video, 0, 0, intrinsicWidth, intrinsicHeight);
 
-      // Save full image
+      // Draw green focus boundary
+      ctx.strokeStyle = 'green';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(focusX, focusY, focusWidth, focusHeight);
+
+      // Save full image with boundary
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
       onImageCapture(imageDataUrl);
 
-      // Debug: Red outline
+      // Debug: Red outline for canvas
       ctx.strokeStyle = 'red';
       ctx.lineWidth = 2;
       ctx.strokeRect(0, 0, canvas.width, canvas.height);
