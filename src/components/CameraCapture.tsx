@@ -1,23 +1,19 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, VideoOff, HelpCircle } from 'lucide-react';
+import { Camera, VideoOff } from 'lucide-react';
 
 interface CameraCaptureProps {
   onImageCapture: (imageDataUrl: string) => void;
 }
 
-// Focus area dimensions (as a percentage of the video width)
 const FOCUS_AREA_WIDTH = 0.8; // 80% of video width
 const FOCUS_AREA_HEIGHT = 0.6; // 60% of video height
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
-  console.log('CameraCapture component rendering'); // Debug log
-
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string>('');
   const [isVideoReady, setIsVideoReady] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Check current permission state
@@ -36,7 +32,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           setHasPermission(false);
           setError('Camera access was denied. Please allow camera access in your browser settings.');
         }
-        // If 'prompt', we'll handle it when requesting camera access
       } catch (err) {
         console.log('Error checking permission:', err);
       }
@@ -144,94 +139,52 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
 
   const captureImage = () => {
     const video = document.querySelector('video');
-    if (!video || !canvasRef.current || !isVideoReady) return;
+    if (!video || !canvasRef.current || !isVideoReady) {
+      console.error('Capture failed: video, canvas, or video not ready');
+      alert('Camera not ready.');
+      return;
+    }
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('Capture failed: canvas context unavailable');
+      alert('Canvas error.');
+      return;
+    }
 
     try {
-      // Calculate focus area dimensions
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-      
-      const focusWidth = videoWidth * FOCUS_AREA_WIDTH;
-      const focusHeight = videoHeight * FOCUS_AREA_HEIGHT;
-      
-      // Calculate focus area position (centered)
-      const focusX = Math.round((videoWidth - focusWidth) / 2);
-      const focusY = Math.round((videoHeight - focusHeight) / 2);
-      
-      // Set canvas size to match focus area exactly
-      canvas.width = Math.round(focusWidth);
-      canvas.height = Math.round(focusHeight);
-      
-      // Enable image smoothing for better quality
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      
-      // Clear the canvas first to ensure no artifacts
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw only the focus area from the video, using exact pixel values
-      ctx.drawImage(
-        video,
-        focusX, focusY, Math.round(focusWidth), Math.round(focusHeight), // Source rectangle (from video)
-        0, 0, canvas.width, canvas.height // Destination rectangle (on canvas)
-      );
+      // Get displayed and intrinsic dimensions
+      const displayWidth = video.offsetWidth || video.clientWidth;
+      const displayHeight = video.offsetHeight || video.clientHeight;
+      const intrinsicWidth = video.videoWidth;
+      const intrinsicHeight = video.videoHeight;
 
-      // Apply sharpening effect
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const sharpenedData = applySharpen(imageData);
-      ctx.putImageData(sharpenedData, 0, 0);
-      
-      // Convert to JPEG with high quality
+      // Log for debugging
+      console.log(`Display: ${displayWidth}x${displayHeight}`);
+      console.log(`Intrinsic: ${intrinsicWidth}x${intrinsicHeight}`);
+
+      // Set canvas to intrinsic size
+      canvas.width = intrinsicWidth;
+      canvas.height = intrinsicHeight;
+
+      // Capture full intrinsic video frame
+      ctx.drawImage(video, 0, 0, intrinsicWidth, intrinsicHeight);
+
+      // Save full image
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
       onImageCapture(imageDataUrl);
+
+      // Debug: Red outline
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
     } catch (err) {
-      console.error('Error capturing image:', err);
-      alert('Failed to capture image. Please try again.');
+      console.error('Capture error:', err);
+      alert('Capture failed.');
     }
   };
 
-  // Helper function to apply sharpening effect
-  const applySharpen = (imageData: ImageData): ImageData => {
-    const { width, height, data } = imageData;
-    const output = new Uint8ClampedArray(data);
-    
-    // Sharpening kernel
-    const kernel = [
-      0, -1, 0,
-      -1, 5, -1,
-      0, -1, 0
-    ];
-    
-    // Apply convolution
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        for (let c = 0; c < 3; c++) { // RGB channels
-          let sum = 0;
-          let idx = (y * width + x) * 4 + c;
-          
-          // Apply kernel
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              const kidx = ((y + ky) * width + (x + kx)) * 4 + c;
-              sum += data[kidx] * kernel[(ky + 1) * 3 + (kx + 1)];
-            }
-          }
-          
-          // Clamp values between 0 and 255
-          output[idx] = Math.max(0, Math.min(255, sum));
-        }
-      }
-    }
-    
-    return new ImageData(output, width, height);
-  };
-
-  // Show loading state while checking permission
   if (hasPermission === null) {
     return (
       <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center">
@@ -243,7 +196,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     );
   }
 
-  // Show error state if permission denied or other error
   if (!hasPermission) {
     return (
       <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center">
@@ -263,7 +215,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
 
   return (
     <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden">
-      {/* Video Preview */}
       <video
         ref={handleVideoRef}
         autoPlay
@@ -271,66 +222,34 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         muted
         className="w-full h-full object-cover"
       />
-
-      {/* Loading overlay */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0"
+        style={{ maxWidth: '100%', maxHeight: '100%' }}
+      />
       {!isVideoReady && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
         </div>
       )}
-
-      {/* Focus Area Overlay */}
       {isVideoReady && (
-        <>
-          {/* Semi-transparent overlay */}
-          <div className="absolute inset-0 bg-black/50">
-            {/* Clear focus area */}
-            <div 
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-              style={{
-                width: `${FOCUS_AREA_WIDTH * 100}%`,
-                height: `${FOCUS_AREA_HEIGHT * 100}%`,
-              }}
-            >
-              {/* Focus area border */}
-              <div className="w-full h-full border-2 border-white/80 rounded-lg">
-                {/* Corner guides */}
-                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-white/80"></div>
-                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-white/80"></div>
-                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-white/80"></div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-white/80"></div>
-              </div>
+        <div className="absolute inset-0 bg-black/50">
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: `${FOCUS_AREA_WIDTH * 100}%`,
+              height: `${FOCUS_AREA_HEIGHT * 100}%`,
+            }}
+          >
+            <div className="w-full h-full border-2 border-green-500 rounded-lg">
+              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-green-500"></div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-green-500"></div>
+              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-green-500"></div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-green-500"></div>
             </div>
           </div>
-
-          {/* Help text */}
-          <div className="absolute top-4 left-4 right-4 text-center">
-            <div className="inline-flex items-center gap-2 bg-black/50 text-white px-4 py-2 rounded-full text-sm">
-              <span>Position card within the frame</span>
-              <button
-                onClick={() => setShowHelp(!showHelp)}
-                className="text-white/80 hover:text-white transition-colors"
-              >
-                <HelpCircle className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Help tooltip */}
-          {showHelp && (
-            <div className="absolute top-16 left-4 right-4 bg-black/80 text-white p-4 rounded-lg text-sm">
-              <ul className="space-y-2">
-                <li>• Hold the card steady within the white frame</li>
-                <li>• Ensure good lighting on the card</li>
-                <li>• Keep your fingers outside the frame</li>
-                <li>• Make sure the entire card is visible</li>
-              </ul>
-            </div>
-          )}
-        </>
+        </div>
       )}
-
-      {/* Capture Button */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <div className="flex justify-center">
           <button
@@ -345,9 +264,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           </button>
         </div>
       </div>
-
-      {/* Hidden Canvas for Image Processing */}
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
