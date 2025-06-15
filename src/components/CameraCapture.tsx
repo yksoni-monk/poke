@@ -27,28 +27,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     try {
       console.log('Starting camera...');
       
-      // Try with environment camera first (back camera on mobile)
-      let mediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 }
-          },
-          audio: false
-        });
-      } catch (envError) {
-        console.log('Environment camera failed, trying any camera:', envError);
-        // Fallback to any available camera
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 }
-          },
-          audio: false
-        });
-      }
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 }
+        },
+        audio: false
+      });
       
       console.log('Camera stream obtained');
       setStream(mediaStream);
@@ -57,10 +42,25 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded');
-          setIsVideoReady(true);
+        
+        // Add multiple event listeners to catch when video is ready
+        const video = videoRef.current;
+        
+        const handleVideoReady = () => {
+          console.log('Video is ready, dimensions:', video.videoWidth, 'x', video.videoHeight);
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            setIsVideoReady(true);
+          }
         };
+        
+        video.onloadedmetadata = handleVideoReady;
+        video.oncanplay = handleVideoReady;
+        video.onplaying = handleVideoReady;
+        
+        // Force play the video
+        video.play().catch(err => {
+          console.error('Error playing video:', err);
+        });
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
@@ -154,10 +154,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
             playsInline
             muted
             className="w-full h-full object-cover"
-            onLoadedData={() => {
-              console.log('Video loaded data event');
-              setIsVideoReady(true);
-            }}
           />
           
           {!isVideoReady && (
