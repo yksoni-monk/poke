@@ -1,9 +1,13 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, VideoOff } from 'lucide-react';
+import { Camera, VideoOff, HelpCircle } from 'lucide-react';
 
 interface CameraCaptureProps {
   onImageCapture: (imageDataUrl: string) => void;
 }
+
+// Focus area dimensions (as a percentage of the video width)
+const FOCUS_AREA_WIDTH = 0.8; // 80% of video width
+const FOCUS_AREA_HEIGHT = 0.6; // 60% of video height
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   console.log('CameraCapture component rendering'); // Debug log
@@ -13,6 +17,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string>('');
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Check current permission state
@@ -147,20 +152,80 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     if (!ctx) return;
 
     try {
-      // Set canvas size to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Calculate focus area dimensions
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
       
-      // Draw the current video frame
-      ctx.drawImage(video, 0, 0);
+      const focusWidth = videoWidth * FOCUS_AREA_WIDTH;
+      const focusHeight = videoHeight * FOCUS_AREA_HEIGHT;
       
-      // Convert to JPEG
+      // Calculate focus area position (centered)
+      const focusX = (videoWidth - focusWidth) / 2;
+      const focusY = (videoHeight - focusHeight) / 2;
+      
+      // Set canvas size to match focus area
+      canvas.width = focusWidth;
+      canvas.height = focusHeight;
+      
+      // Enable image smoothing for better quality
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw only the focus area from the video
+      ctx.drawImage(
+        video,
+        focusX, focusY, focusWidth, focusHeight, // Source rectangle (from video)
+        0, 0, focusWidth, focusHeight // Destination rectangle (on canvas)
+      );
+
+      // Apply sharpening effect
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const sharpenedData = applySharpen(imageData);
+      ctx.putImageData(sharpenedData, 0, 0);
+      
+      // Convert to JPEG with high quality
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
       onImageCapture(imageDataUrl);
     } catch (err) {
       console.error('Error capturing image:', err);
       alert('Failed to capture image. Please try again.');
     }
+  };
+
+  // Helper function to apply sharpening effect
+  const applySharpen = (imageData: ImageData): ImageData => {
+    const { width, height, data } = imageData;
+    const output = new Uint8ClampedArray(data);
+    
+    // Sharpening kernel
+    const kernel = [
+      0, -1, 0,
+      -1, 5, -1,
+      0, -1, 0
+    ];
+    
+    // Apply convolution
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        for (let c = 0; c < 3; c++) { // RGB channels
+          let sum = 0;
+          let idx = (y * width + x) * 4 + c;
+          
+          // Apply kernel
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const kidx = ((y + ky) * width + (x + kx)) * 4 + c;
+              sum += data[kidx] * kernel[(ky + 1) * 3 + (kx + 1)];
+            }
+          }
+          
+          // Clamp values between 0 and 255
+          output[idx] = Math.max(0, Math.min(255, sum));
+        }
+      }
+    }
+    
+    return new ImageData(output, width, height);
   };
 
   // Show loading state while checking permission
@@ -209,6 +274,57 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
         </div>
+      )}
+
+      {/* Focus Area Overlay */}
+      {isVideoReady && (
+        <>
+          {/* Semi-transparent overlay */}
+          <div className="absolute inset-0 bg-black/50">
+            {/* Clear focus area */}
+            <div 
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                width: `${FOCUS_AREA_WIDTH * 100}%`,
+                height: `${FOCUS_AREA_HEIGHT * 100}%`,
+              }}
+            >
+              {/* Focus area border */}
+              <div className="w-full h-full border-2 border-white/80 rounded-lg">
+                {/* Corner guides */}
+                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-white/80"></div>
+                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-white/80"></div>
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-white/80"></div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-white/80"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Help text */}
+          <div className="absolute top-4 left-4 right-4 text-center">
+            <div className="inline-flex items-center gap-2 bg-black/50 text-white px-4 py-2 rounded-full text-sm">
+              <span>Position card within the frame</span>
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Help tooltip */}
+          {showHelp && (
+            <div className="absolute top-16 left-4 right-4 bg-black/80 text-white p-4 rounded-lg text-sm">
+              <ul className="space-y-2">
+                <li>• Hold the card steady within the white frame</li>
+                <li>• Ensure good lighting on the card</li>
+                <li>• Keep your fingers outside the frame</li>
+                <li>• Make sure the entire card is visible</li>
+              </ul>
+            </div>
+          )}
+        </>
       )}
 
       {/* Capture Button */}
