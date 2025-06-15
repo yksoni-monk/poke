@@ -41,25 +41,36 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       setError('');
       
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        
-        // Add multiple event listeners to catch when video is ready
         const video = videoRef.current;
+        video.srcObject = mediaStream;
+        
+        // Set video ready immediately when stream is obtained
+        // and add a timeout fallback
+        const readyTimer = setTimeout(() => {
+          console.log('Forcing video ready state after timeout');
+          setIsVideoReady(true);
+        }, 1000);
         
         const handleVideoReady = () => {
-          console.log('Video is ready, dimensions:', video.videoWidth, 'x', video.videoHeight);
-          if (video.videoWidth > 0 && video.videoHeight > 0) {
-            setIsVideoReady(true);
-          }
+          console.log('Video ready event fired, dimensions:', video.videoWidth || 'unknown', 'x', video.videoHeight || 'unknown');
+          clearTimeout(readyTimer);
+          setIsVideoReady(true);
         };
         
-        video.onloadedmetadata = handleVideoReady;
-        video.oncanplay = handleVideoReady;
-        video.onplaying = handleVideoReady;
+        // Multiple event listeners for better compatibility
+        video.addEventListener('loadedmetadata', handleVideoReady);
+        video.addEventListener('canplay', handleVideoReady);
+        video.addEventListener('playing', handleVideoReady);
+        video.addEventListener('loadeddata', handleVideoReady);
         
-        // Force play the video
-        video.play().catch(err => {
+        // Force play and set ready state
+        video.play().then(() => {
+          console.log('Video playing successfully');
+          handleVideoReady();
+        }).catch(err => {
           console.error('Error playing video:', err);
+          // Still set ready state even if play fails
+          handleVideoReady();
         });
       }
     } catch (err) {
@@ -76,8 +87,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const captureImage = () => {
     console.log('Attempting to capture image...');
     
-    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
-      console.error('Video not ready or refs not available');
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('Video or canvas ref not available');
       return;
     }
 
@@ -91,14 +102,17 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
 
     try {
-      // Set canvas size to match video dimensions
-      canvas.width = video.videoWidth || video.clientWidth;
-      canvas.height = video.videoHeight || video.clientHeight;
+      // Use video dimensions or fallback to client dimensions
+      const width = video.videoWidth || video.clientWidth || 640;
+      const height = video.videoHeight || video.clientHeight || 480;
       
-      console.log(`Capturing image: ${canvas.width}x${canvas.height}`);
+      canvas.width = width;
+      canvas.height = height;
+      
+      console.log(`Capturing image: ${width}x${height}`);
       
       // Draw the video frame to canvas
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, width, height);
       
       // Convert to data URL
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
@@ -165,17 +179,15 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
             </div>
           )}
           
-          {/* Overlay guides */}
-          {isVideoReady && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="border-2 border-white border-dashed rounded-lg w-72 h-44 flex items-center justify-center">
-                <div className="text-white text-center">
-                  <div className="text-sm opacity-75 mb-1">Position card here</div>
-                  <div className="text-xs opacity-50">Keep card flat and well-lit</div>
-                </div>
+          {/* Overlay guides - show even if video not ready for better UX */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="border-2 border-white border-dashed rounded-lg w-72 h-44 flex items-center justify-center">
+              <div className="text-white text-center">
+                <div className="text-sm opacity-75 mb-1">Position card here</div>
+                <div className="text-xs opacity-50">Keep card flat and well-lit</div>
               </div>
             </div>
-          )}
+          </div>
         </div>
         
         {/* Controls */}
@@ -183,14 +195,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           <div className="flex justify-center">
             <button
               onClick={captureImage}
-              disabled={!isVideoReady}
-              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 text-white p-4 rounded-full shadow-lg transition-all duration-200 transform active:scale-95"
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white p-4 rounded-full shadow-lg transition-all duration-200 transform active:scale-95"
             >
               <Camera className="h-8 w-8" />
             </button>
           </div>
           <p className="text-center text-gray-500 text-sm mt-3">
-            {isVideoReady ? 'Tap to capture your Pokémon card' : 'Waiting for camera...'}
+            Tap to capture your Pokémon card
           </p>
         </div>
       </div>
