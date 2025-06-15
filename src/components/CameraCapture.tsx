@@ -138,9 +138,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   };
 
   const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current || !isVideoReady) return;
+    const video = document.querySelector('video');
+    if (!video || !canvasRef.current || !isVideoReady) return;
 
-    const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
