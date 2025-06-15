@@ -160,22 +160,25 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       const focusHeight = videoHeight * FOCUS_AREA_HEIGHT;
       
       // Calculate focus area position (centered)
-      const focusX = (videoWidth - focusWidth) / 2;
-      const focusY = (videoHeight - focusHeight) / 2;
+      const focusX = Math.round((videoWidth - focusWidth) / 2);
+      const focusY = Math.round((videoHeight - focusHeight) / 2);
       
-      // Set canvas size to match focus area
-      canvas.width = focusWidth;
-      canvas.height = focusHeight;
+      // Set canvas size to match focus area exactly
+      canvas.width = Math.round(focusWidth);
+      canvas.height = Math.round(focusHeight);
       
       // Enable image smoothing for better quality
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       
-      // Draw only the focus area from the video
+      // Clear the canvas first to ensure no artifacts
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw only the focus area from the video, using exact pixel values
       ctx.drawImage(
         video,
-        focusX, focusY, focusWidth, focusHeight, // Source rectangle (from video)
-        0, 0, focusWidth, focusHeight // Destination rectangle (on canvas)
+        focusX, focusY, Math.round(focusWidth), Math.round(focusHeight), // Source rectangle (from video)
+        0, 0, canvas.width, canvas.height // Destination rectangle (on canvas)
       );
 
       // Apply sharpening effect
