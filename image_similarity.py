@@ -67,7 +67,7 @@ def get_image_embedding(image_content, use_cache=True):
         use_cache (bool): Whether to use caching for embeddings.
 
     Returns:
-        numpy.ndarray: Normalized 1D embedding (e.g., 768D for CLIP).
+        numpy.ndarray: Normalized 1D embedding (768D for CLIP), or None if invalid.
     """
     if not isinstance(image_content, Image.Image):
         raise ValueError("image_content must be a PIL Image object")
@@ -86,9 +86,12 @@ def get_image_embedding(image_content, use_cache=True):
 
             if os.path.exists(cache_path):
                 with open(cache_path, 'rb') as f:
-                    return pickle.load(f)
+                    embedding = pickle.load(f)
+                    if np.any(np.isnan(embedding)) or np.any(np.isinf(embedding)):
+                        os.remove(cache_path)
+                    else:
+                        return embedding
 
-        # Preprocess image
         image = preprocess_image(image_content)
         inputs = processor(images=image, return_tensors="pt", padding=True).to(device)
 
@@ -97,10 +100,14 @@ def get_image_embedding(image_content, use_cache=True):
 
         norm = image_features.norm(dim=1, keepdim=True)
         if norm == 0:
-            raise ValueError("Image embedding has zero norm, cannot normalize")
+            print("Warning: Zero-norm embedding detected, skipping.")
+            return None
         image_features = image_features / norm
 
         embedding = image_features[0].cpu().numpy().astype(np.float32)
+        if np.any(np.isnan(embedding)) or np.any(np.isinf(embedding)):
+            print("Warning: Invalid embedding (NaN/inf), skipping.")
+            return None
 
         if use_cache:
             with open(cache_path, 'wb') as f:
@@ -109,15 +116,16 @@ def get_image_embedding(image_content, use_cache=True):
         return embedding
 
     except Exception as e:
-        raise RuntimeError(f"Error computing embedding: {e}")
+        print(f"Error computing embedding: {e}")
+        return None
 
 def embedding_image_similarity(image_path):
     """
-    Perform similarity search to find the top 10 matching image URLs for a given image using NumPy.
-    
+    Perform similarity search to find the top 10 matching image URLs using NumPy.
+
     Args:
         image_path (str): Path to the query image (local path or URL).
-    
+
     Returns:
         list: Top 10 matching image URLs from the database.
     """
@@ -134,44 +142,56 @@ def embedding_image_similarity(image_path):
     if len(embeddings) != len(image_metadata):
         raise ValueError("Mismatch between number of embeddings and metadata entries.")
 
+    # Filter out invalid embeddings
+    valid_mask = ~np.any(np.isnan(embeddings) | np.isinf(embeddings), axis=1)
+    if np.sum(~valid_mask) > 0:
+        print(f"Warning: {np.sum(~valid_mask)} invalid embeddings found, filtering them out.")
+        embeddings = embeddings[valid_mask]
+        image_metadata = [meta for i, meta in enumerate(image_metadata) if valid_mask[i]]
+
     try:
         if image_path.startswith(('http://', 'https://')):
             response = requests.get(image_path, timeout=10)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
             img.verify()
-            img = Image.open(BytesIO(response.content))  # Reopen after verify
+            img = Image.open(BytesIO(response.content))
         else:
             img = Image.open(image_path)
             img.verify()
-            img = Image.open(image_path)  # Reopen after verify
+            img = Image.open(image_path)
 
         query_embedding = get_image_embedding(img)
+        if query_embedding is None:
+            raise ValueError("Invalid query embedding (zero-norm or NaN/inf).")
         query_embedding = np.array(query_embedding, dtype=np.float32).reshape(1, -1)
 
     except (requests.RequestException, ValueError, Exception) as e:
         raise RuntimeError(f"Error processing query image {image_path}: {e}")
 
     if query_embedding.shape[1] != embeddings.shape[1]:
-        raise ValueError("Query embedding dimension does not match database embeddings.")
+        raise ValueError(f"Query embedding dimension {query_embedding.shape[1]} does not match database embeddings {embeddings.shape[1]}.")
 
-    # Compute cosine similarities (inner product for normalized vectors)
-    similarities = np.dot(embeddings, query_embedding.T).flatten()
-    
-    # Get top 10 indices
-    k = 10
-    top_indices = np.argsort(similarities)[-k:][::-1]  # Descending order
-    top_similarities = similarities[top_indices]
-    
-    # Retrieve top 10 image URLs
-    top_urls = [image_metadata[idx]["url"] for idx in top_indices]
-    print(f"Top {k} URLs: {top_urls}")
+    # Compute similarities with robust error handling
+    with np.errstate(all='ignore'):
+        similarities = np.dot(embeddings, query_embedding.T).flatten()
+        similarities = np.nan_to_num(similarities, nan=-1.0, posinf=1.0, neginf=-1.0)
+        similarities = np.clip(similarities, -1.0, 1.0)
+
+    top_10_indices = np.argsort(similarities)[-10:][::-1]
+    top_similarities = similarities[top_10_indices]
+    top_urls = [image_metadata[idx]["url"] for idx in top_10_indices]
+
+    print(f"Top 10 URLs:")
+    for i, (idx, sim) in enumerate(zip(top_10_indices, top_similarities), 1):
+        print(f"Rank {i}: URL: {image_metadata[idx]['url']}, Score: {sim:.4f}")
+
     return top_urls
 
 def create_embeddings(card_db_file):
     """
     Create embeddings for images in the card database and save to embeddings.npy and image_metadata.json.
-    
+
     Args:
         card_db_file (str): Path to CSV file containing card data with 'card image url' column.
     """
@@ -183,6 +203,7 @@ def create_embeddings(card_db_file):
     image_metadata = []
 
     if os.path.exists(embedding_file):
+        print("Embedding file exists, skipping creation.")
         return
 
     for index, row in df.iterrows():
@@ -192,9 +213,12 @@ def create_embeddings(card_db_file):
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
             img.verify()
-            img = Image.open(BytesIO(response.content))  # Reopen after verify
+            img = Image.open(BytesIO(response.content))
 
             embedding = get_image_embedding(img)
+            if embedding is None:
+                print(f"Skipping {image_url}: Invalid embedding.")
+                continue
             embedding = np.array(embedding, dtype=np.float32).reshape(1, -1)
 
             embeddings.append(embedding)
@@ -206,23 +230,31 @@ def create_embeddings(card_db_file):
 
     if embeddings:
         embeddings = np.vstack(embeddings)
-        # Normalize embeddings
-        embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
-        np.save(embedding_file, embeddings)
-        with open(metadata_file, 'w') as f:
-            json.dump(image_metadata, f)
-        print(f"Final save: {len(embeddings)} embeddings")
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        invalid_norms = norms == 0
+        if np.any(invalid_norms):
+            print(f"Removing {np.sum(invalid_norms)} embeddings with zero norms.")
+            embeddings = embeddings[~invalid_norms]
+            image_metadata = [meta for i, meta in enumerate(image_metadata) if not invalid_norms[i]]
+        if len(embeddings) > 0:
+            embeddings = embeddings / norms[~invalid_norms]
+            np.save(embedding_file, embeddings)
+            with open(metadata_file, 'w') as f:
+                json.dump(image_metadata, f)
+            print(f"Final save: {len(embeddings)} embeddings")
+        else:
+            print("No valid embeddings generated")
     else:
         print("No embeddings generated")
 
 def get_image_similarity(image1_path, image2_path):
     """
     Compute cosine similarity between two images.
-    
+
     Args:
         image1_path (str): Path or URL to first image.
         image2_path (str): Path or URL to second image.
-    
+
     Returns:
         float: Cosine similarity score (-1 to 1).
     """
@@ -239,6 +271,8 @@ def get_image_similarity(image1_path, image2_path):
             img1 = Image.open(image1_path)
 
         embedding1 = get_image_embedding(img1)
+        if embedding1 is None:
+            raise ValueError("Invalid embedding for first image.")
 
         if image2_path.startswith(('http://', 'https://')):
             response = requests.get(image2_path, timeout=10)
@@ -252,8 +286,11 @@ def get_image_similarity(image1_path, image2_path):
             img2 = Image.open(image2_path)
 
         embedding2 = get_image_embedding(img2)
+        if embedding2 is None:
+            raise ValueError("Invalid embedding for second image.")
 
         similarity = np.dot(embedding1, embedding2).item()
+        similarity = np.clip(similarity, -1.0, 1.0)
 
         print(f"Image similarity score: {similarity:.4f}")
         return similarity
