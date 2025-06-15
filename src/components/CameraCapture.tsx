@@ -12,6 +12,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string>('');
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
   useEffect(() => {
     startCamera();
@@ -24,19 +25,42 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment', // Use back camera on mobile
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      console.log('Starting camera...');
       
+      // Try with environment camera first (back camera on mobile)
+      let mediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 }
+          },
+          audio: false
+        });
+      } catch (envError) {
+        console.log('Environment camera failed, trying any camera:', envError);
+        // Fallback to any available camera
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 }
+          },
+          audio: false
+        });
+      }
+      
+      console.log('Camera stream obtained');
       setStream(mediaStream);
       setHasPermission(true);
+      setError('');
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          setIsVideoReady(true);
+        };
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
@@ -44,34 +68,50 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Camera access denied');
+        setError('Camera access denied or not available');
       }
     }
   };
 
   const captureImage = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
+    console.log('Attempting to capture image...');
+    
+    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
+      console.error('Video not ready or refs not available');
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      console.error('Canvas context not available');
+      return;
+    }
+
+    try {
+      // Set canvas size to match video dimensions
+      canvas.width = video.videoWidth || video.clientWidth;
+      canvas.height = video.videoHeight || video.clientHeight;
       
-      if (ctx) {
-        // Set canvas size to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw the video frame to canvas
-        ctx.drawImage(video, 0, 0);
-        
-        // Convert to data URL
-        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        onImageCapture(imageDataUrl);
-        
-        // Add haptic feedback on mobile
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
+      console.log(`Capturing image: ${canvas.width}x${canvas.height}`);
+      
+      // Draw the video frame to canvas
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Convert to data URL
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      console.log('Image captured successfully, data URL length:', imageDataUrl.length);
+      
+      onImageCapture(imageDataUrl);
+      
+      // Add haptic feedback on mobile
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
       }
+    } catch (error) {
+      console.error('Error capturing image:', error);
     }
   };
 
@@ -92,10 +132,10 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         <p className="text-gray-600 mb-4">
           Please allow camera access to scan your Pokémon cards.
         </p>
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600 mb-4">{error}</p>
         <button
           onClick={startCamera}
-          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition-colors"
         >
           Try Again
         </button>
@@ -114,17 +154,32 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
             playsInline
             muted
             className="w-full h-full object-cover"
+            onLoadedData={() => {
+              console.log('Video loaded data event');
+              setIsVideoReady(true);
+            }}
           />
           
-          {/* Overlay guides */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="border-2 border-white border-dashed rounded-lg w-72 h-44 flex items-center justify-center">
+          {!isVideoReady && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
               <div className="text-white text-center">
-                <div className="text-sm opacity-75 mb-1">Position card here</div>
-                <div className="text-xs opacity-50">Keep card flat and well-lit</div>
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent mx-auto mb-2"></div>
+                <div className="text-sm">Loading camera...</div>
               </div>
             </div>
-          </div>
+          )}
+          
+          {/* Overlay guides */}
+          {isVideoReady && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="border-2 border-white border-dashed rounded-lg w-72 h-44 flex items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="text-sm opacity-75 mb-1">Position card here</div>
+                  <div className="text-xs opacity-50">Keep card flat and well-lit</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Controls */}
@@ -132,13 +187,14 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           <div className="flex justify-center">
             <button
               onClick={captureImage}
-              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white p-4 rounded-full shadow-lg transition-all duration-200 transform active:scale-95"
+              disabled={!isVideoReady}
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 text-white p-4 rounded-full shadow-lg transition-all duration-200 transform active:scale-95"
             >
               <Camera className="h-8 w-8" />
             </button>
           </div>
           <p className="text-center text-gray-500 text-sm mt-3">
-            Tap to capture your Pokémon card
+            {isVideoReady ? 'Tap to capture your Pokémon card' : 'Waiting for camera...'}
           </p>
         </div>
       </div>
