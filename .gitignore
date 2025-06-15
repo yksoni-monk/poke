@@ -18,3 +18,5 @@ uv.lock
 embedding_cache/
 embeddings.npy
 image_metadata.json
+
+.poke
