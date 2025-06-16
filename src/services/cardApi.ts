@@ -2,46 +2,6 @@ import { CardData, ScanResult } from '../types/card';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Mock card database for demonstration
-const mockCards: CardData[] = [
-  {
-    name: "Charizard",
-    number: "4/102",
-    set: "Base Set",
-    rarity: "Rare Holo",
-    price: "$350.00",
-    priceRange: "$300 - $400",
-    condition: "Near Mint",
-    imageUrl: "https://images.pokemontcg.io/base1/4_hires.png",
-    description: "A legendary Fire-type Pokémon card from the original Base Set."
-  },
-  {
-    name: "Blastoise",
-    number: "2/102",
-    set: "Base Set",
-    rarity: "Rare Holo",
-    price: "$180.00",
-    priceRange: "$150 - $220",
-    condition: "Near Mint",
-    imageUrl: "https://images.pokemontcg.io/base1/2_hires.png",
-    description: "A powerful Water-type Pokémon from the original Base Set."
-  },
-  {
-    name: "Venusaur",
-    number: "15/102",
-    set: "Base Set",
-    rarity: "Rare Holo",
-    price: "$160.00",
-    priceRange: "$140 - $200",
-    condition: "Near Mint",
-    imageUrl: "https://images.pokemontcg.io/base1/15_hires.png",
-    description: "A classic Grass-type Pokémon from the original Base Set."
-  }
-];
-
 export class CardApiService {
   static async scanCard(imageBlob: Blob): Promise<ScanResult> {
     try {
