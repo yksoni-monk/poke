@@ -137,6 +137,50 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
   };
 
+  const cropToGreenBox = (imageDataUrl: string, focusX: number, focusY: number, focusWidth: number, focusHeight: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = imageDataUrl;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(focusWidth);
+        canvas.height = Math.round(focusHeight);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          console.error('Crop canvas context unavailable');
+          reject(new Error('Crop canvas error'));
+          return;
+        }
+
+        // Draw the focus area from the input image
+        ctx.drawImage(
+          img,
+          focusX,
+          focusY,
+          focusWidth,
+          focusHeight,
+          0,
+          0,
+          focusWidth,
+          focusHeight
+        );
+
+        // Debug: Red outline for crop canvas
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+        // Return cropped image data URL
+        const croppedImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        resolve(croppedImageDataUrl);
+      };
+      img.onerror = () => {
+        console.error('Failed to load image for cropping');
+        reject(new Error('Image load error'));
+      };
+    });
+  };
+
   const captureImage = () => {
     const video = document.querySelector('video');
     if (!video || !canvasRef.current || !isVideoReady) {
@@ -199,14 +243,31 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       ctx.lineWidth = 4;
       ctx.strokeRect(focusX, focusY, focusWidth, focusHeight);
 
-      // Save full image with boundary
-      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-      onImageCapture(imageDataUrl);
+      // Get full image with boundary
+      const fullImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
 
-      // Debug: Red outline for canvas
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+      // Crop to green box
+      cropToGreenBox(fullImageDataUrl, focusX, focusY, focusWidth, focusHeight)
+        .then(croppedImageDataUrl => {
+          // Set canvas to cropped size for debug overlay
+          canvas.width = Math.round(focusWidth);
+          canvas.height = Math.round(focusHeight);
+          const img = new Image();
+          img.src = croppedImageDataUrl;
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+            // Debug: Red outline for canvas
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            // Pass cropped image to onImageCapture
+            onImageCapture(croppedImageDataUrl);
+          };
+        })
+        .catch(err => {
+          console.error('Crop error:', err);
+          alert('Crop failed.');
+        });
     } catch (err) {
       console.error('Capture error:', err);
       alert('Capture failed.');
@@ -252,8 +313,11 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       />
       <canvas
         ref={canvasRef}
-        className="absolute inset-0"
-        style={{ maxWidth: '100%', maxHeight: '100%' }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{
+          width: `${FOCUS_AREA_WIDTH * 100}%`,
+          height: `${FOCUS_AREA_HEIGHT * 100}%`,
+        }}
       />
       {!isVideoReady && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

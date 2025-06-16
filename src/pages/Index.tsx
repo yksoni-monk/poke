@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import CameraCapture from '../components/CameraCapture';
 import CardDetails from '../components/CardDetails';
 import { CardData } from '../types/card';
@@ -7,6 +7,7 @@ import { CardApiService } from '../services/cardApi';
 const Index = () => {
   console.log('Index component rendering');
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +15,30 @@ const Index = () => {
   useEffect(() => {
     console.log('Index component mounted');
   }, []);
+
+  useEffect(() => {
+    if (capturedImage && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const img = new Image();
+        img.src = capturedImage;
+        img.onload = () => {
+          // Log image dimensions
+          console.log(`Review image intrinsic: ${img.naturalWidth}x${img.naturalHeight}`);
+          // Set canvas to intrinsic crop size
+          canvas.width = img.naturalWidth; // ~486
+          canvas.height = img.naturalHeight; // ~648
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Red outline
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        };
+        img.onerror = () => console.error('Failed to load review image');
+      }
+    }
+  }, [capturedImage]);
 
   const handleImageCapture = (imageDataUrl: string) => {
     setCapturedImage(imageDataUrl);
@@ -24,10 +49,7 @@ const Index = () => {
     
     setIsLoading(true);
     try {
-      // Convert data URL to blob using the CardApiService utility
       const imageBlob = CardApiService.dataURLToBlob(capturedImage);
-      
-      // Call the actual API service
       const result = await CardApiService.scanCard(imageBlob);
       
       if (!result.success) {
@@ -41,7 +63,6 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Error scanning card:', error);
-      // You might want to show an error message to the user here
       alert(error instanceof Error ? error.message : 'Failed to scan card. Please try again.');
     } finally {
       setIsLoading(false);
@@ -87,7 +108,15 @@ const Index = () => {
                   <img 
                     src={capturedImage} 
                     alt="Captured card" 
-                    className="w-full h-64 object-cover"
+                    className="w-full max-w-[358.4px] mx-auto aspect-[3/4] object-contain"
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      console.log(`Review image displayed: ${img.width}x${img.height}`);
+                    }}
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[358.4px] aspect-[3/4]"
                   />
                 </div>
                 <div className="flex gap-3">
