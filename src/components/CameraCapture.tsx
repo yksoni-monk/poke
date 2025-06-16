@@ -16,7 +16,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Check current permission state
   useEffect(() => {
     const checkPermission = async () => {
       try {
@@ -40,7 +39,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     checkPermission();
   }, []);
 
-  // Handle video element mounting
   const handleVideoRef = useCallback((video: HTMLVideoElement | null) => {
     console.log('handleVideoRef called with:', video ? 'video element' : 'null');
     if (video && !streamRef.current) {
@@ -49,7 +47,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
   }, []);
 
-  // Start camera
   const startCamera = async (video: HTMLVideoElement) => {
     try {
       console.log('Starting camera initialization...');
@@ -74,7 +71,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       streamRef.current = stream;
       video.srcObject = stream;
 
-      // Set up event listeners
       const handleCanPlay = () => {
         console.log('Video can play event fired');
         setIsVideoReady(true);
@@ -152,25 +148,18 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           return;
         }
 
-        // Draw the focus area from the input image with rounded coordinates
         ctx.drawImage(
           img,
-          Math.round(focusX), // ~297
-          Math.round(focusY), // ~216
-          Math.round(focusWidth), // ~486
-          Math.round(focusHeight), // ~648
+          Math.round(focusX),
+          Math.round(focusY),
+          Math.round(focusWidth),
+          Math.round(focusHeight),
           0,
           0,
           Math.round(focusWidth),
           Math.round(focusHeight)
         );
 
-        // Debug: Red outline for crop canvas
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-        // Return cropped image data URL
         const croppedImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
         resolve(croppedImageDataUrl);
       };
@@ -198,69 +187,51 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
 
     try {
-      // Get displayed and intrinsic dimensions
       const displayWidth = video.offsetWidth || video.clientWidth;
       const displayHeight = video.offsetHeight || video.clientHeight;
       const intrinsicWidth = video.videoWidth;
       const intrinsicHeight = video.videoHeight;
 
-      // Log for debugging
       console.log(`Display: ${displayWidth}x${displayHeight}`);
       console.log(`Intrinsic: ${intrinsicWidth}x${intrinsicHeight}`);
 
-      // Calculate focus area in display coordinates
       const focusWidthDisplay = displayWidth * FOCUS_AREA_WIDTH;
       const focusHeightDisplay = displayHeight * FOCUS_AREA_HEIGHT;
       const focusXDisplay = (displayWidth - focusWidthDisplay) / 2;
       const focusYDisplay = (displayHeight - focusHeightDisplay) / 2;
 
-      // Log focus area
       console.log(`Focus area (display): ${focusXDisplay},${focusYDisplay} ${focusWidthDisplay}x${focusHeightDisplay}`);
 
-      // Calculate scaling due to object-cover
-      const scale = displayHeight / intrinsicHeight; // Video scaled to match display height
+      const scale = displayHeight / intrinsicHeight;
       const scaledIntrinsicWidth = intrinsicWidth * scale;
-      const offsetX = (scaledIntrinsicWidth - displayWidth) / 2; // Horizontal crop
+      const offsetX = (scaledIntrinsicWidth - displayWidth) / 2;
 
-      // Map focus area to intrinsic coordinates
       const focusX = focusXDisplay / scale + offsetX / scale;
       const focusY = focusYDisplay / scale;
       const focusWidth = focusWidthDisplay / scale;
       const focusHeight = focusHeightDisplay / scale;
 
-      // Log intrinsic focus area
       console.log(`Focus area (intrinsic): ${focusX},${focusY} ${focusWidth}x${focusHeight}`);
 
-      // Set canvas to intrinsic size
       canvas.width = intrinsicWidth;
       canvas.height = intrinsicHeight;
 
-      // Capture full intrinsic video frame
       ctx.drawImage(video, 0, 0, intrinsicWidth, intrinsicHeight);
 
-      // Draw green focus boundary
       ctx.strokeStyle = 'green';
       ctx.lineWidth = 4;
       ctx.strokeRect(focusX, focusY, focusWidth, focusHeight);
 
-      // Get full image with boundary
       const fullImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
 
-      // Crop to green box
       cropToGreenBox(fullImageDataUrl, focusX, focusY, focusWidth, focusHeight)
         .then(croppedImageDataUrl => {
-          // Set canvas to cropped size for debug overlay
           canvas.width = Math.round(focusWidth);
           canvas.height = Math.round(focusHeight);
           const img = new Image();
           img.src = croppedImageDataUrl;
           img.onload = () => {
             ctx.drawImage(img, 0, 0);
-            // Debug: Red outline for canvas
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
-            // Pass cropped image to onImageCapture
             onImageCapture(croppedImageDataUrl);
           };
         })
@@ -311,14 +282,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         muted
         className="w-full h-full object-cover"
       />
-      <canvas
-        ref={canvasRef}
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        style={{
-          width: `${FOCUS_AREA_WIDTH * 100}%`,
-          height: `${FOCUS_AREA_HEIGHT * 100}%`,
-        }}
-      />
+      <canvas ref={canvasRef} className="hidden" />
       {!isVideoReady && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
