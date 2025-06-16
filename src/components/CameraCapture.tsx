@@ -247,7 +247,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
 
   if (hasPermission === null) {
     return (
-      <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center">
+      <div className="h-full w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
         <div className="text-center p-4">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
           <p className="text-white">Initializing camera...</p>
@@ -258,7 +258,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
 
   if (!hasPermission) {
     return (
-      <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden flex items-center justify-center">
+      <div className="h-full w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
         <div className="text-center p-4">
           <VideoOff className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <p className="text-white mb-2">{error || 'Camera access is required'}</p>
@@ -274,38 +274,42 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   }
 
   return (
-    <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden">
-      <video
-        ref={handleVideoRef}
-        autoPlay
-        playsInline
-        muted
-        className="w-full h-full object-cover"
-      />
-      <canvas ref={canvasRef} className="hidden" />
-      {!isVideoReady && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
-        </div>
-      )}
-      {isVideoReady && (
-        <div className="absolute inset-0 bg-black/50">
-          <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{
-              width: `${FOCUS_AREA_WIDTH * 100}%`,
-              height: `${FOCUS_AREA_HEIGHT * 100}%`,
-            }}
-          >
-            <div className="w-full h-full border-2 border-green-500 rounded-lg">
-              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-green-500"></div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-green-500"></div>
-              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-green-500"></div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-green-500"></div>
+    <div className="h-full w-full bg-black rounded-lg overflow-hidden relative">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-full h-full max-w-[min(100%,calc(100vh*9/16))] max-h-[min(100%,calc(100vw*16/9))]">
+          <video
+            ref={handleVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+          {!isVideoReady && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
             </div>
-          </div>
+          )}
+          {isVideoReady && (
+            <div className="absolute inset-0 bg-black/50">
+              <div
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  width: `${FOCUS_AREA_WIDTH * 100}%`,
+                  height: `${FOCUS_AREA_HEIGHT * 100}%`,
+                }}
+              >
+                <div className="w-full h-full border-2 border-green-500 rounded-lg">
+                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-green-500"></div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-green-500"></div>
+                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-green-500"></div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-green-500"></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <div className="flex justify-center">
           <button
