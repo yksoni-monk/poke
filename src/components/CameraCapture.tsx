@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+
+import React, { useRef, useState, useEffect } from 'react';
 import { Camera, VideoOff } from 'lucide-react';
 
 interface CameraCaptureProps {
@@ -17,47 +18,19 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    const checkPermission = async () => {
-      try {
-        console.log('Checking current permission state...');
-        const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
-        console.log('Current camera permission state:', result.state);
-        
-        if (result.state === 'granted') {
-          console.log('Camera permission already granted');
-          setHasPermission(true);
-        } else if (result.state === 'denied') {
-          console.log('Camera permission denied');
-          setHasPermission(false);
-          setError('Camera access was denied. Please allow camera access in your browser settings.');
-        }
-      } catch (err) {
-        console.log('Error checking permission:', err);
+    initializeCamera();
+    return () => {
+      console.log('Cleaning up camera...');
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-
-    checkPermission();
   }, []);
 
-  const handleVideoRef = useCallback((video: HTMLVideoElement | null) => {
-    console.log('handleVideoRef called with:', video ? 'video element' : 'null');
-    if (video && !streamRef.current) {
-      console.log('Video element mounted, starting camera...');
-      startCamera(video);
-    }
-  }, []);
-
-  const startCamera = async (video: HTMLVideoElement) => {
+  const initializeCamera = async () => {
     try {
-      console.log('Starting camera initialization...');
-      console.log('Current permission state:', hasPermission);
+      console.log('Initializing camera...');
       
-      if (hasPermission === false) {
-        console.log('Camera permission denied, not proceeding with initialization');
-        return;
-      }
-
-      console.log('Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1080 },
@@ -67,181 +40,107 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         audio: false
       });
 
-      console.log('Camera access granted, setting up video element');
+      console.log('Camera stream obtained');
       streamRef.current = stream;
-      video.srcObject = stream;
-
-      const handleCanPlay = () => {
-        console.log('Video can play event fired');
-        setIsVideoReady(true);
-        setHasPermission(true);
-      };
-
-      const handleError = (e: Event) => {
-        console.error('Video error event fired:', e);
-        setError('Failed to start video playback');
-        setHasPermission(false);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-        }
-      };
-
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('error', handleError);
-
-      console.log('Attempting to play video...');
-      try {
-        await video.play();
-        console.log('Video playback started successfully');
-      } catch (err) {
-        console.error('Error playing video:', err);
-        setError('Failed to start video playback');
-        setHasPermission(false);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-        }
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log('Video playing');
+              setIsVideoReady(true);
+              setHasPermission(true);
+            }).catch(err => {
+              console.error('Error playing video:', err);
+              setError('Failed to start video playback');
+              setHasPermission(false);
+            });
+          }
+        };
       }
-
-      return () => {
-        console.log('Cleaning up video event listeners');
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('error', handleError);
-      };
     } catch (err) {
-      console.error('Error in startCamera:', err);
+      console.error('Error initializing camera:', err);
       setHasPermission(false);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          console.log('Camera permission denied by user');
           setError('Camera access was denied. Please allow camera access in your browser settings.');
         } else if (err.name === 'NotFoundError') {
-          console.log('No camera found');
           setError('No camera found. Please connect a camera and try again.');
-        } else if (err.name === 'NotReadableError') {
-          console.log('Camera in use by another application');
-          setError('Camera is in use by another application. Please close other apps using the camera.');
         } else {
-          console.log('Unknown camera error:', err.message);
           setError(`Camera error: ${err.message}`);
         }
       } else {
-        console.log('Unknown error type:', err);
         setError('Failed to access camera. Please try again.');
       }
     }
   };
 
-  const cropToGreenBox = (imageDataUrl: string, focusX: number, focusY: number, focusWidth: number, focusHeight: number): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.src = imageDataUrl;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(focusWidth); // ~486
-        canvas.height = Math.round(focusHeight); // ~648
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          console.error('Crop canvas context unavailable');
-          reject(new Error('Crop canvas error'));
-          return;
-        }
-
-        ctx.drawImage(
-          img,
-          Math.round(focusX),
-          Math.round(focusY),
-          Math.round(focusWidth),
-          Math.round(focusHeight),
-          0,
-          0,
-          Math.round(focusWidth),
-          Math.round(focusHeight)
-        );
-
-        const croppedImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-        resolve(croppedImageDataUrl);
-      };
-      img.onerror = () => {
-        console.error('Failed to load image for cropping');
-        reject(new Error('Image load error'));
-      };
-    });
-  };
-
   const captureImage = () => {
-    const video = document.querySelector('video');
-    if (!video || !canvasRef.current || !isVideoReady) {
-      console.error('Capture failed: video, canvas, or video not ready');
+    console.log('Capture button clicked');
+    
+    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
+      console.error('Capture failed: video not ready');
       alert('Camera not ready.');
       return;
     }
 
+    const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    
     if (!ctx) {
-      console.error('Capture failed: canvas context unavailable');
+      console.error('Canvas context not available');
       alert('Canvas error.');
       return;
     }
 
     try {
-      const displayWidth = video.offsetWidth || video.clientWidth;
-      const displayHeight = video.offsetHeight || video.clientHeight;
-      const intrinsicWidth = video.videoWidth;
-      const intrinsicHeight = video.videoHeight;
+      console.log('Starting capture process...');
+      
+      // Get video dimensions
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      
+      console.log(`Video dimensions: ${videoWidth}x${videoHeight}`);
+      
+      if (videoWidth === 0 || videoHeight === 0) {
+        console.error('Invalid video dimensions');
+        alert('Video not ready for capture.');
+        return;
+      }
 
-      console.log(`Display: ${displayWidth}x${displayHeight}`);
-      console.log(`Intrinsic: ${intrinsicWidth}x${intrinsicHeight}`);
+      // Calculate focus area in video coordinates
+      const focusWidth = videoWidth * FOCUS_AREA_WIDTH;
+      const focusHeight = videoHeight * FOCUS_AREA_HEIGHT;
+      const focusX = (videoWidth - focusWidth) / 2;
+      const focusY = (videoHeight - focusHeight) / 2;
 
-      const focusWidthDisplay = displayWidth * FOCUS_AREA_WIDTH;
-      const focusHeightDisplay = displayHeight * FOCUS_AREA_HEIGHT;
-      const focusXDisplay = (displayWidth - focusWidthDisplay) / 2;
-      const focusYDisplay = (displayHeight - focusHeightDisplay) / 2;
+      console.log(`Focus area: ${focusX}, ${focusY}, ${focusWidth}x${focusHeight}`);
 
-      console.log(`Focus area (display): ${focusXDisplay},${focusYDisplay} ${focusWidthDisplay}x${focusHeightDisplay}`);
+      // Set canvas size to focus area size
+      canvas.width = focusWidth;
+      canvas.height = focusHeight;
 
-      const scale = displayHeight / intrinsicHeight;
-      const scaledIntrinsicWidth = intrinsicWidth * scale;
-      const offsetX = (scaledIntrinsicWidth - displayWidth) / 2;
+      // Draw the cropped portion directly to canvas
+      ctx.drawImage(
+        video,
+        focusX, focusY, focusWidth, focusHeight,  // source rectangle
+        0, 0, focusWidth, focusHeight             // destination rectangle
+      );
 
-      const focusX = focusXDisplay / scale + offsetX / scale;
-      const focusY = focusYDisplay / scale;
-      const focusWidth = focusWidthDisplay / scale;
-      const focusHeight = focusHeightDisplay / scale;
-
-      console.log(`Focus area (intrinsic): ${focusX},${focusY} ${focusWidth}x${focusHeight}`);
-
-      canvas.width = intrinsicWidth;
-      canvas.height = intrinsicHeight;
-
-      ctx.drawImage(video, 0, 0, intrinsicWidth, intrinsicHeight);
-
-      ctx.strokeStyle = 'green';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(focusX, focusY, focusWidth, focusHeight);
-
-      const fullImageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-
-      cropToGreenBox(fullImageDataUrl, focusX, focusY, focusWidth, focusHeight)
-        .then(croppedImageDataUrl => {
-          canvas.width = Math.round(focusWidth);
-          canvas.height = Math.round(focusHeight);
-          const img = new Image();
-          img.src = croppedImageDataUrl;
-          img.onload = () => {
-            ctx.drawImage(img, 0, 0);
-            onImageCapture(croppedImageDataUrl);
-          };
-        })
-        .catch(err => {
-          console.error('Crop error:', err);
-          alert('Crop failed.');
-        });
+      // Convert to data URL
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      console.log('Image captured successfully, data URL length:', imageDataUrl.length);
+      
+      // Call the callback with the captured image
+      onImageCapture(imageDataUrl);
+      
     } catch (err) {
       console.error('Capture error:', err);
-      alert('Capture failed.');
+      alert('Failed to capture image. Please try again.');
     }
   };
 
@@ -278,18 +177,20 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-full h-full max-w-[min(100%,calc(100vh*9/16))] max-h-[min(100%,calc(100vw*16/9))]">
           <video
-            ref={handleVideoRef}
+            ref={videoRef}
             autoPlay
             playsInline
             muted
             className="w-full h-full object-cover"
           />
           <canvas ref={canvasRef} className="hidden" />
+          
           {!isVideoReady && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
             </div>
           )}
+          
           {isVideoReady && (
             <div className="absolute inset-0 bg-black/50">
               <div
@@ -310,6 +211,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           )}
         </div>
       </div>
+      
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <div className="flex justify-center">
           <button
