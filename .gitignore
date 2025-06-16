@@ -1,3 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.env
+.python-version
+image.jpg
+image_embeddings_cache/
+uv.lock
+
+embedding_cache/
+embeddings.npy
+image_metadata.json
+
+.poke
 # Logs
 logs
 *.log
