@@ -143,8 +143,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       img.src = imageDataUrl;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = Math.round(focusWidth);
-        canvas.height = Math.round(focusHeight);
+        canvas.width = Math.round(focusWidth); // ~486
+        canvas.height = Math.round(focusHeight); // ~648
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           console.error('Crop canvas context unavailable');
@@ -152,17 +152,17 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           return;
         }
 
-        // Draw the focus area from the input image
+        // Draw the focus area from the input image with rounded coordinates
         ctx.drawImage(
           img,
-          focusX,
-          focusY,
-          focusWidth,
-          focusHeight,
+          Math.round(focusX), // ~297
+          Math.round(focusY), // ~216
+          Math.round(focusWidth), // ~486
+          Math.round(focusHeight), // ~648
           0,
           0,
-          focusWidth,
-          focusHeight
+          Math.round(focusWidth),
+          Math.round(focusHeight)
         );
 
         // Debug: Red outline for crop canvas
