@@ -1,16 +1,13 @@
 import { CardData, ScanResult } from '../types/card';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
 export class CardApiService {
   static async scanCard(imageBlob: Blob): Promise<ScanResult> {
     try {
-      // Create form data to send the image
       const formData = new FormData();
       formData.append('image', imageBlob, 'card.jpg');
 
-      // Send the image to the backend
-      const response = await fetch(`${API_BASE_URL}/scan-card`, {
+      // Use relative URL; Nginx proxies /api/* to backend
+      const response = await fetch('/api/scan-card', {
         method: 'POST',
         body: formData,
       });
@@ -42,7 +39,6 @@ export class CardApiService {
     }
   }
   
-  // Helper method to convert data URL to blob
   static dataURLToBlob(dataURL: string): Blob {
     const arr = dataURL.split(',');
     const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
