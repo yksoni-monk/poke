@@ -55,7 +55,7 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
+    <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
       <div className="flex-none text-center py-2">
         <h1 className="text-xl font-bold text-white">
           📱 PokéScan
@@ -64,10 +64,10 @@ const Index = () => {
           Scan your Pokémon cards instantly
         </p>
       </div>
-      <div className="flex-1 flex items-center justify-center p-2 min-h-0">
-        <div className="w-full max-w-md h-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-2 min-h-0 overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col min-h-0 overflow-hidden">
           {!capturedImage && !cardData && (
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <CameraCapture onImageCapture={handleImageCapture} />
             </div>
           )}
