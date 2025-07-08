@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Camera, VideoOff } from 'lucide-react';
 
 interface CameraCaptureProps {
@@ -16,34 +16,36 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const startCamera = async (video: HTMLVideoElement | null) => {
-    if (!video) {
-      console.error('Video element not available');
-      setError('Video element not found');
-      return;
-    }
-
+  const startCamera = async (video: HTMLVideoElement) => {
+    console.log('startCamera: Starting with video element:', video);
     try {
-      console.log('Requesting camera access...');
+      console.log('startCamera: Enumerating devices...');
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      console.log('startCamera: Available video devices:', devices.filter(d => d.kind === 'videoinput'));
+
+      console.log('startCamera: Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }, // Simplified constraints for mobile
+        video: true, // Minimal constraints for compatibility
         audio: false
       });
 
-      console.log('Camera access granted, setting up video element');
+      console.log('startCamera: Camera access granted, assigning stream');
       streamRef.current = stream;
       video.srcObject = stream;
 
       const handleCanPlay = () => {
-        console.log('Video can play event fired');
+        console.log('startCamera: Video canplay event fired');
         setIsVideoReady(true);
         setHasPermission(true);
+        video.removeEventListener('canplay', handleCanPlay);
       };
 
       const handleError = (e: Event) => {
-        console.error('Video error event fired:', e);
-        setError('Failed to start video playback');
+        console.error('startCamera: Video error event:', e);
+        setError('Failed to start video stream. Please try again.');
         setHasPermission(false);
+        setIsVideoReady(false);
+        video.removeEventListener('error', handleError);
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
           streamRef.current = null;
@@ -53,113 +55,97 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       video.addEventListener('canplay', handleCanPlay);
       video.addEventListener('error', handleError);
 
-      // Timeout to detect if video fails to initialize
-      const timeout = setTimeout(() => {
-        if (!isVideoReady) {
-          console.error('Video failed to become ready within 10 seconds');
-          setError('Camera failed to initialize. Please try again.');
-          setHasPermission(false);
-          if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-          }
-        }
-      }, 10000);
-
-      console.log('Attempting to play video...');
-      try {
-        await video.play();
-        console.log('Video playback started successfully');
-      } catch (err) {
-        console.error('Error playing video:', err);
-        setError('Failed to start video playback');
-        setHasPermission(false);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-        }
-      }
-
-      return () => {
-        console.log('Cleaning up video event listeners');
-        clearTimeout(timeout);
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('error', handleError);
-      };
+      console.log('startCamera: Attempting to play video...');
+      await video.play();
+      console.log('startCamera: Video playback started successfully');
     } catch (err) {
-      console.error('Error in startCamera:', err);
+      console.error('startCamera: Error:', err);
       setHasPermission(false);
+      setIsVideoReady(false);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          console.log('Camera permission denied by user');
-          setError('Camera access was denied. Please allow camera access in your browser settings.');
+          setError('Camera access denied. Please enable camera permissions in browser settings.');
         } else if (err.name === 'NotFoundError') {
-          console.log('No camera found');
-          setError('No camera found. Please connect a camera and try again.');
+          setError('No camera found. Please ensure a camera is connected.');
         } else if (err.name === 'NotReadableError') {
-          console.log('Camera in use by another application');
-          setError('Camera is in use by another application. Please close other apps using the camera.');
+          setError('Camera is in use by another app. Please close other apps using the camera.');
         } else {
-          console.log('Unknown camera error:', err.message);
           setError(`Camera error: ${err.message}`);
         }
       } else {
-        console.log('Unknown error type:', err);
         setError('Failed to access camera. Please try again.');
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
     }
   };
 
   useEffect(() => {
-    const checkAndRequestPermission = async () => {
+    console.log('useEffect: Checking video ref:', videoRef.current);
+    const initializeCamera = async () => {
+      if (!videoRef.current) {
+        console.log('useEffect: Video element not mounted yet, waiting...');
+        return;
+      }
+
       try {
-        console.log('Checking current permission state...');
+        console.log('useEffect: Checking camera permission...');
         const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
-        console.log('Current camera permission state:', result.state);
+        console.log('useEffect: Camera permission state:', result.state);
 
         if (result.state === 'granted') {
-          console.log('Camera permission already granted');
+          console.log('useEffect: Permission granted, starting camera...');
           setHasPermission(true);
-          if (videoRef.current) {
-            startCamera(videoRef.current);
-          }
+          await startCamera(videoRef.current);
         } else if (result.state === 'denied') {
-          console.log('Camera permission denied');
+          console.log('useEffect: Permission denied');
           setHasPermission(false);
-          setError('Camera access was denied. Please allow camera access in your browser settings.');
+          setError('Camera access denied. Please enable camera permissions in browser settings.');
         } else if (result.state === 'prompt') {
-          console.log('Permission prompt required, requesting camera access...');
-          setHasPermission(null); // Keep in initializing state until user responds
-          if (videoRef.current) {
-            startCamera(videoRef.current); // Trigger permission prompt
-          }
+          console.log('useEffect: Permission prompt required');
+          setHasPermission(null); // Show "Allow Camera" button
         }
       } catch (err) {
-        console.log('Error checking permission:', err);
-        setError('Failed to check camera permission. Please try again.');
+        console.error('useEffect: Error checking permission:', err);
+        setError('Failed to check camera permission. Please click "Allow Camera" to try again.');
+        setHasPermission(null);
       }
     };
 
-    checkAndRequestPermission();
+    initializeCamera();
 
     return () => {
+      console.log('useEffect: Cleaning up stream on unmount');
       if (streamRef.current) {
-        console.log('Cleaning up stream on unmount');
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
       }
     };
   }, []);
 
-  const handleManualPermissionRequest = () => {
+  const handleManualPermissionRequest = async () => {
+    console.log('handleManualPermissionRequest: Button clicked');
+    setError('');
+    setHasPermission(null);
     if (videoRef.current) {
-      setError('');
-      setHasPermission(null);
-      startCamera(videoRef.current);
+      console.log('handleManualPermissionRequest: Video ref available, starting camera');
+      await startCamera(videoRef.current);
+    } else {
+      console.error('handleManualPermissionRequest: Video ref not available');
+      setError('Video element not found. Please refresh the page.');
+      setHasPermission(false);
     }
   };
 
-  const cropToGreenBox = (imageDataUrl: string, focusX: number, focusY: number, focusWidth: number, focusHeight: number): Promise<string> => {
+  const cropToGreenBox = (
+    imageDataUrl: string,
+    focusX: number,
+    focusY: number,
+    focusWidth: number,
+    focusHeight: number
+  ): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.src = imageDataUrl;
@@ -169,7 +155,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         canvas.height = Math.round(focusHeight);
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          console.error('Crop canvas context unavailable');
+          console.error('cropToGreenBox: Canvas context unavailable');
           reject(new Error('Crop canvas error'));
           return;
         }
@@ -190,7 +176,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         resolve(croppedImageDataUrl);
       };
       img.onerror = () => {
-        console.error('Failed to load image for cropping');
+        console.error('cropToGreenBox: Failed to load image for cropping');
         reject(new Error('Image load error'));
       };
     });
@@ -199,7 +185,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const captureImage = () => {
     const video = videoRef.current;
     if (!video || !canvasRef.current || !isVideoReady) {
-      console.error('Capture failed: video, canvas, or video not ready');
+      console.error('captureImage: Video, canvas, or video not ready');
       alert('Camera not ready.');
       return;
     }
@@ -207,7 +193,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      console.error('Capture failed: canvas context unavailable');
+      console.error('captureImage: Canvas context unavailable');
       alert('Canvas error.');
       return;
     }
@@ -218,15 +204,17 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       const intrinsicWidth = video.videoWidth;
       const intrinsicHeight = video.videoHeight;
 
-      console.log(`Display: ${displayWidth}x${displayHeight}`);
-      console.log(`Intrinsic: ${intrinsicWidth}x${intrinsicHeight}`);
+      console.log(`captureImage: Display: ${displayWidth}x${displayHeight}`);
+      console.log(`captureImage: Intrinsic: ${intrinsicWidth}x${intrinsicHeight}`);
 
       const focusWidthDisplay = displayWidth * FOCUS_AREA_WIDTH;
       const focusHeightDisplay = displayHeight * FOCUS_AREA_HEIGHT;
       const focusXDisplay = (displayWidth - focusWidthDisplay) / 2;
       const focusYDisplay = (displayHeight - focusHeightDisplay) / 2;
 
-      console.log(`Focus area (display): ${focusXDisplay},${focusYDisplay} ${focusWidthDisplay}x${focusHeightDisplay}`);
+      console.log(
+        `captureImage: Focus area (display): ${focusXDisplay},${focusYDisplay} ${focusWidthDisplay}x${focusHeightDisplay}`
+      );
 
       const scale = displayHeight / intrinsicHeight;
       const scaledIntrinsicWidth = intrinsicWidth * scale;
@@ -237,7 +225,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       const focusWidth = focusWidthDisplay / scale;
       const focusHeight = focusHeightDisplay / scale;
 
-      console.log(`Focus area (intrinsic): ${focusX},${focusY} ${focusWidth}x${focusHeight}`);
+      console.log(
+        `captureImage: Focus area (intrinsic): ${focusX},${focusY} ${focusWidth}x${focusHeight}`
+      );
 
       canvas.width = intrinsicWidth;
       canvas.height = intrinsicHeight;
@@ -262,11 +252,11 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           };
         })
         .catch(err => {
-          console.error('Crop error:', err);
+          console.error('captureImage: Crop error:', err);
           alert('Crop failed.');
         });
     } catch (err) {
-      console.error('Capture error:', err);
+      console.error('captureImage: Error:', err);
       alert('Capture failed.');
     }
   };
@@ -276,7 +266,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       <div className="h-full w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
         <div className="text-center p-4">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-white mb- imagination 4">Requesting camera access...</p>
+          <p className="text-white mb-4">Please allow camera access</p>
           <button
             onClick={handleManualPermissionRequest}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -320,6 +310,12 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           {!isVideoReady && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+              <button
+                onClick={handleManualPermissionRequest}
+                className="absolute bottom-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Start Camera
+              </button>
             </div>
           )}
           {isVideoReady && (
@@ -350,7 +346,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
             className={`w-16 h-16 rounded-full bg-white border-4 border-white/30 transition-colors ${
               isVideoReady ? 'hover:bg-white/90' : 'opacity-50 cursor-not-allowed'
             }`}
-            title={isVideoReady ? "Capture Card" : "Camera not ready"}
+            title={isVideoReady ? 'Capture Card' : 'Camera not ready'}
           >
             <Camera className="w-8 h-8 text-black mx-auto" />
           </button>
