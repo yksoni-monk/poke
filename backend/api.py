@@ -8,12 +8,15 @@ import os
 from typing import List, Dict, Any
 from image_similarity import embedding_image_similarity
 import pandas as pd
+from fastapi import APIRouter
 
 app = FastAPI(
     title="Pokemon Card Scanner API",
     description="API for scanning and identifying Pokemon cards using image similarity",
     version="1.0.0"
 )
+
+api_router = APIRouter(prefix="/v1/api")
 
 # Configure CORS
 app.add_middleware(
@@ -32,7 +35,7 @@ if not os.path.exists(card_db_file):
 # Load card metadata
 card_df = pd.read_csv(card_db_file)
 
-@app.post("/scan-card", response_model=Dict[str, Any])
+@api_router.post("/scan-card", response_model=Dict[str, Any])
 async def scan_card(image: UploadFile):
     """
     Scan a Pokemon card image and return the best matches.
@@ -101,10 +104,12 @@ async def scan_card(image: UploadFile):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/health")
+@api_router.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
