@@ -25,7 +25,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
 
       console.log('startCamera: Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true, // Minimal constraints for compatibility
+        video: { facingMode: 'environment' }, // Prefer rear camera for mobile
         audio: false
       });
 
@@ -64,9 +64,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       setIsVideoReady(false);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          setError('Camera access denied. Please enable camera permissions in browser settings.');
+          setError('Camera access denied. Please allow camera access in Safari settings.');
         } else if (err.name === 'NotFoundError') {
-          setError('No camera found. Please ensure a camera is connected.');
+          setError('No camera found. Please ensure your device has a camera.');
         } else if (err.name === 'NotReadableError') {
           setError('Camera is in use by another app. Please close other apps using the camera.');
         } else {
@@ -87,6 +87,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     const initializeCamera = async () => {
       if (!videoRef.current) {
         console.log('useEffect: Video element not mounted yet, waiting...');
+        setError('Waiting for video element to load...');
         return;
       }
 
@@ -102,7 +103,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
         } else if (result.state === 'denied') {
           console.log('useEffect: Permission denied');
           setHasPermission(false);
-          setError('Camera access denied. Please enable camera permissions in browser settings.');
+          setError('Camera access denied. Please enable camera permissions in Safari settings.');
         } else if (result.state === 'prompt') {
           console.log('useEffect: Permission prompt required');
           setHasPermission(null); // Show "Allow Camera" button
@@ -129,12 +130,22 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     console.log('handleManualPermissionRequest: Button clicked');
     setError('');
     setHasPermission(null);
+
+    // Retry up to 3 times to ensure video element is mounted
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (!videoRef.current && attempts < maxAttempts) {
+      console.log(`handleManualPermissionRequest: Video ref not available, attempt ${attempts + 1}`);
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+      attempts++;
+    }
+
     if (videoRef.current) {
       console.log('handleManualPermissionRequest: Video ref available, starting camera');
       await startCamera(videoRef.current);
     } else {
-      console.error('handleManualPermissionRequest: Video ref not available');
-      setError('Video element not found. Please refresh the page.');
+      console.error('handleManualPermissionRequest: Video ref still not available after retries');
+      setError('Failed to initialize camera. Please ensure the page loaded correctly and try again.');
       setHasPermission(false);
     }
   };
