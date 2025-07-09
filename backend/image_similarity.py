@@ -26,6 +26,8 @@ class ImageEmbeddingModel:
             cls._instance.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(cls._instance.device)
             cls._instance.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14", use_fast=False)
             cls._instance.cache_dir = CACHE_DIR
+            cls._instance.embedding_file = os.path.join(cls._instance.cache_dir, "embeddings.npy")
+            cls._instance.metadata_file = os.path.join(cls._instance.cache_dir, "image_metadata.json")
         return cls._instance
 
 def preprocess_image(image):
@@ -129,8 +131,11 @@ def embedding_image_similarity(image_path):
     Returns:
         list: Top 10 matching image URLs from the database.
     """
-    embedding_file = "embeddings.npy"
-    metadata_file = "image_metadata.json"
+    clip = ImageEmbeddingModel()
+    embedding_file = clip.embedding_file
+    print(f"Embedding file: {embedding_file}")
+    metadata_file = clip.metadata_file
+    print(f"Metadata file: {metadata_file}")
 
     if not os.path.exists(embedding_file) or not os.path.exists(metadata_file):
         raise FileNotFoundError("Embeddings or metadata file not found.")
@@ -197,8 +202,9 @@ def create_embeddings(card_db_file):
     """
     df = pd.read_csv(card_db_file)
 
-    embedding_file = "embeddings.npy"
-    metadata_file = "image_metadata.json"
+    clip = ImageEmbeddingModel()
+    embedding_file = clip.embedding_file
+    metadata_file = clip.metadata_file
     embeddings = []
     image_metadata = []
 
