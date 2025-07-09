@@ -234,10 +234,12 @@ def create_embeddings(card_db_file):
         invalid_norms = norms == 0
         if np.any(invalid_norms):
             print(f"Removing {np.sum(invalid_norms)} embeddings with zero norms.")
-            embeddings = embeddings[~invalid_norms]
+            embeddings = embeddings[~invalid_norms.flatten()]
             image_metadata = [meta for i, meta in enumerate(image_metadata) if not invalid_norms[i]]
         if len(embeddings) > 0:
-            embeddings = embeddings / norms[~invalid_norms]
+            # Recalculate norms after filtering
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            embeddings = embeddings / norms
             np.save(embedding_file, embeddings)
             with open(metadata_file, 'w') as f:
                 json.dump(image_metadata, f)

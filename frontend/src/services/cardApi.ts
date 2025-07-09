@@ -7,7 +7,7 @@ export class CardApiService {
       formData.append('image', imageBlob, 'card.jpg');
 
       // Use relative URL; Nginx proxies /api/* to backend
-      const response = await fetch('/api/scan-card', {
+      const response = await fetch('http://localhost/v1/api/scan-card', {
         method: 'POST',
         body: formData,
       });
