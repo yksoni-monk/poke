@@ -1,5 +1,4 @@
 from fastapi import FastAPI, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from PIL import Image
 from io import BytesIO
@@ -10,6 +9,26 @@ from image_similarity import embedding_image_similarity
 import pandas as pd
 from fastapi import APIRouter
 
+#logging
+import logging
+import sys
+
+# Configure logging to work properly in Docker containers
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ],
+    force=True
+)
+logger = logging.getLogger(__name__)
+
+# Force Python to run unbuffered for Docker
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+
 app = FastAPI(
     title="Pokemon Card Scanner API",
     description="API for scanning and identifying Pokemon cards using image similarity",
@@ -17,15 +36,6 @@ app = FastAPI(
 )
 
 api_router = APIRouter(prefix="/v1/api")
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8080"],  # Frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Load card database
 card_db_file = "card_names.csv"
@@ -50,10 +60,13 @@ async def scan_card(image: UploadFile):
         - error: str (if unsuccessful)
     """
     try:
+        
         # Validate file type
         if not image.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
-        
+        logger.info(f"Scanning card: {image.filename}")
+        print(f"Scanning card: {image.filename}")
+        sys.stdout.flush()
         # Read and validate image
         contents = await image.read()
         try:
@@ -69,9 +82,14 @@ async def scan_card(image: UploadFile):
             temp_path = temp_file.name
         
         try:
+            logger.info(f"Reading image: {temp_path}")      
+            print(f"Reading image: {temp_path}")
+            sys.stdout.flush()
             # Get similar card URLs
             similar_urls = embedding_image_similarity(temp_path)
-            
+            logger.info(f"embedding_image_similarity: {similar_urls}")            
+            print(f"embedding_image_similarity: {similar_urls}")
+            sys.stdout.flush()
             if not similar_urls:
                 return JSONResponse(
                     status_code=404,
@@ -83,8 +101,13 @@ async def scan_card(image: UploadFile):
             
             # Get card details for the best match
             best_match_url = similar_urls[0]
+            logger.info(f"best_match_url: {best_match_url}")
+            print(f"best_match_url: {best_match_url}")
+            sys.stdout.flush()
             card_info = card_df[card_df["card image url"] == best_match_url].iloc[0]
-            
+            logger.info(f"card_info: {card_info}")
+            print(f"card_info: {card_info}")
+            sys.stdout.flush()
             return {
                 "success": True,
                 "cardData": {
@@ -100,8 +123,14 @@ async def scan_card(image: UploadFile):
             os.unlink(temp_path)
             
     except HTTPException as he:
+        logger.error(f"HTTP Exception: {he}")
+        print(f"HTTP Exception: {he}")
+        sys.stdout.flush()
         raise he
     except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        print(f"Unexpected error: {str(e)}")
+        sys.stdout.flush()
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/health")

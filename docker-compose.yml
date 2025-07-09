@@ -10,8 +10,7 @@ services:
     restart: unless-stopped
     # Add volumes or environment as needed
     volumes:
-      - embeddings_data:/app/embedding_cache
-      - embeddings_data:/app
+      - ./backend/embedding_cache:/app/embedding_cache
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/api/health"]
       interval: 10s
@@ -33,8 +32,4 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-
-volumes:
-  embeddings_data:
-    driver: local 
+      start_period: 10s 
