@@ -29,6 +29,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      certbot:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/v1/api/health"]
@@ -43,6 +45,16 @@ services:
       - poke-network
 
   certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot-certs:/etc/letsencrypt
+    command: certbot certonly --standalone -d ${API_DOMAIN:-localhost} --email admin@heymonk.app --agree-tos --non-interactive
+    environment:
+      - API_DOMAIN=${API_DOMAIN:-localhost}
+    networks:
+      - poke-network
+
+  certbot-renew:
     image: certbot/certbot:latest
     volumes:
       - certbot-certs:/etc/letsencrypt
