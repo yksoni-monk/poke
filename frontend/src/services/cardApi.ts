@@ -6,8 +6,9 @@ export class CardApiService {
       const formData = new FormData();
       formData.append('image', imageBlob, 'card.jpg');
 
-      // Use relative URL; Nginx proxies /api/* to backend
-      const response = await fetch('http://localhost/v1/api/scan-card', {
+      // Use the current domain for API calls
+      const apiBaseUrl = window.location.protocol + '//' + window.location.host;
+      const response = await fetch(`${apiBaseUrl}/v1/api/scan-card`, {
         method: 'POST',
         body: formData,
       });
