@@ -35,6 +35,7 @@ echo "Generating certificates..."
 docker run --rm \
     -v $(pwd)/certbot-certs:/etc/letsencrypt \
     -v $(pwd)/certbot-webroot:/var/www/html \
+    --user $(id -u):$(id -g) \
     certbot/certbot:latest \
     certonly --webroot -w /var/www/html \
     -d $DOMAIN \
@@ -47,7 +48,10 @@ echo "Stopping temporary nginx..."
 docker stop temp-nginx
 docker rm temp-nginx
 
+
+
 # Check if certificates were generated
+echo "Checking for generated certificates..."
 if [ -f "certbot-certs/live/$DOMAIN/fullchain.pem" ]; then
     echo "✅ Certificates generated successfully!"
     echo "Certificate location: certbot-certs/live/$DOMAIN/"
@@ -56,5 +60,9 @@ if [ -f "certbot-certs/live/$DOMAIN/fullchain.pem" ]; then
     echo "docker-compose up -d"
 else
     echo "❌ Certificate generation failed!"
+    echo "Expected file: certbot-certs/live/$DOMAIN/fullchain.pem"
+    echo "Checking what files exist:"
+    ls -la certbot-certs/ 2>/dev/null || echo "No certbot-certs directory found"
+    ls -la certbot-certs/live/ 2>/dev/null || echo "No live directory found"
     exit 1
 fi 
