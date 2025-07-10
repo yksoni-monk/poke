@@ -13,7 +13,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
     networks:
       - poke-network
 
@@ -27,7 +27,8 @@ services:
       - certbot-certs:/etc/letsencrypt
     command: /bin/bash -c "envsubst '$$CORS_ORIGIN $$API_DOMAIN' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/v1/api/health"]
