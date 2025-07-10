@@ -30,11 +30,17 @@ docker run -d --name temp-nginx \
 # Wait for nginx to start
 sleep 5
 
+# Create certbot directories
+mkdir -p certbot-logs
+mkdir -p certbot-work
+
 # Generate certificates using certbot
 echo "Generating certificates..."
 docker run --rm \
     -v $(pwd)/certbot-certs:/etc/letsencrypt \
     -v $(pwd)/certbot-webroot:/var/www/html \
+    -v $(pwd)/certbot-logs:/var/log/letsencrypt \
+    -v $(pwd)/certbot-work:/var/lib/letsencrypt \
     --user $(id -u):$(id -g) \
     certbot/certbot:latest \
     certonly --webroot -w /var/www/html \
