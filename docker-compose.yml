@@ -27,6 +27,7 @@ services:
       - ./certbot-certs:/etc/letsencrypt
       - ./certbot-webroot:/var/www/html
     command: /bin/bash -c "envsubst '$$CORS_ORIGIN $$API_DOMAIN $$ENVIRONMENT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+
     depends_on:
       backend:
         condition: service_healthy

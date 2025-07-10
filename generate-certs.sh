@@ -54,7 +54,11 @@ echo "Stopping temporary nginx..."
 docker stop temp-nginx
 docker rm temp-nginx
 
-
+# Fix certificate permissions so nginx can read them
+echo "Fixing certificate permissions..."
+sudo chmod -R 755 certbot-certs/
+sudo chmod 644 certbot-certs/live/$DOMAIN/fullchain.pem
+sudo chmod 644 certbot-certs/live/$DOMAIN/privkey.pem
 
 # Check if certificates were generated
 echo "Checking for generated certificates..."
