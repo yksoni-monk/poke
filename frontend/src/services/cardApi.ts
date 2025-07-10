@@ -6,8 +6,8 @@ export class CardApiService {
       const formData = new FormData();
       formData.append('image', imageBlob, 'card.jpg');
 
-      // Use the current domain for API calls
-      const apiBaseUrl = window.location.protocol + '//' + window.location.host;
+      // Use environment-based API base URL
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
       const response = await fetch(`${apiBaseUrl}/v1/api/scan-card`, {
         method: 'POST',
         body: formData,
