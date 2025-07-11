@@ -22,9 +22,11 @@ class ImageEmbeddingModel:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-            cls._instance.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(cls._instance.device)
-            cls._instance.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14", use_fast=False)
+            # Force CPU to save memory
+            cls._instance.device = torch.device("cpu")
+            # Use smaller model for memory efficiency
+            cls._instance.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(cls._instance.device)
+            cls._instance.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=False)
             cls._instance.cache_dir = CACHE_DIR
             cls._instance.embedding_file = os.path.join(cls._instance.cache_dir, "embeddings.npy")
             cls._instance.metadata_file = os.path.join(cls._instance.cache_dir, "image_metadata.json")
@@ -140,19 +142,28 @@ def embedding_image_similarity(image_path):
     if not os.path.exists(embedding_file) or not os.path.exists(metadata_file):
         raise FileNotFoundError("Embeddings or metadata file not found.")
 
-    embeddings = np.load(embedding_file).astype('float32')
+    # Load embeddings in chunks to save memory
+    embeddings = np.load(embedding_file, mmap_mode='r').astype('float32')
     with open(metadata_file, 'r') as f:
         image_metadata = json.load(f)
 
     if len(embeddings) != len(image_metadata):
         raise ValueError("Mismatch between number of embeddings and metadata entries.")
 
-    # Filter out invalid embeddings
-    valid_mask = ~np.any(np.isnan(embeddings) | np.isinf(embeddings), axis=1)
-    if np.sum(~valid_mask) > 0:
-        print(f"Warning: {np.sum(~valid_mask)} invalid embeddings found, filtering them out.")
-        embeddings = embeddings[valid_mask]
-        image_metadata = [meta for i, meta in enumerate(image_metadata) if valid_mask[i]]
+    # Filter out invalid embeddings (process in chunks)
+    # Each embedding is 512D float32 = 2KB, so 100 embeddings = 200KB
+    chunk_size = 100
+    valid_indices = []
+    for i in range(0, len(embeddings), chunk_size):
+        end_idx = min(i + chunk_size, len(embeddings))
+        chunk = embeddings[i:end_idx]
+        valid_mask = ~np.any(np.isnan(chunk) | np.isinf(chunk), axis=1)
+        valid_indices.extend([j for j in range(i, end_idx) if valid_mask[j - i]])
+    
+    if len(valid_indices) != len(embeddings):
+        print(f"Warning: {len(embeddings) - len(valid_indices)} invalid embeddings found, filtering them out.")
+        embeddings = embeddings[valid_indices]
+        image_metadata = [image_metadata[i] for i in valid_indices]
 
     try:
         if image_path.startswith(('http://', 'https://')):
@@ -177,12 +188,23 @@ def embedding_image_similarity(image_path):
     if query_embedding.shape[1] != embeddings.shape[1]:
         raise ValueError(f"Query embedding dimension {query_embedding.shape[1]} does not match database embeddings {embeddings.shape[1]}.")
 
-    # Compute similarities with robust error handling
+    # Compute similarities in chunks to save memory
+    # Each embedding is 512D float32 = 2KB, so 100 embeddings = 200KB
+    chunk_size = 100
+    all_similarities = []
+    
     with np.errstate(all='ignore'):
-        similarities = np.dot(embeddings, query_embedding.T).flatten()
-        similarities = np.nan_to_num(similarities, nan=-1.0, posinf=1.0, neginf=-1.0)
-        similarities = np.clip(similarities, -1.0, 1.0)
-
+        for i in range(0, len(embeddings), chunk_size):
+            end_idx = min(i + chunk_size, len(embeddings))
+            chunk = embeddings[i:end_idx]
+            chunk_similarities = np.dot(chunk, query_embedding.T).flatten()
+            chunk_similarities = np.nan_to_num(chunk_similarities, nan=-1.0, posinf=1.0, neginf=-1.0)
+            chunk_similarities = np.clip(chunk_similarities, -1.0, 1.0)
+            all_similarities.extend(chunk_similarities)
+    
+    similarities = np.array(all_similarities)
+    
+    # Find top 10 matches
     top_10_indices = np.argsort(similarities)[-10:][::-1]
     top_similarities = similarities[top_10_indices]
     top_urls = [image_metadata[idx]["url"] for idx in top_10_indices]
