@@ -28,7 +28,7 @@ services:
       - ./nginx-prod.conf:/etc/nginx/nginx-PROD.conf:ro
       - ./certbot-certs:/etc/letsencrypt
       - ./certbot-webroot:/var/www/html
-    command: /bin/bash -c "envsubst '$$CORS_ORIGIN $$API_DOMAIN $$ENVIRONMENT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && envsubst '$$CORS_ORIGIN $$API_DOMAIN $$ENVIRONMENT' < /etc/nginx/nginx-$$ENVIRONMENT.conf > /etc/nginx/nginx-$$ENVIRONMENT.conf.tmp && mv /etc/nginx/nginx-$$ENVIRONMENT.conf.tmp /etc/nginx/nginx-$$ENVIRONMENT.conf && nginx -g 'daemon off;'"
+    command: /bin/bash -c "envsubst '$$CORS_ORIGIN $$API_DOMAIN $$ENVIRONMENT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && envsubst '$$CORS_ORIGIN $$API_DOMAIN $$ENVIRONMENT' < /etc/nginx/nginx-$$ENVIRONMENT.conf > /etc/nginx/nginx-env.conf && nginx -g 'daemon off;'"
 
     depends_on:
       backend:
