@@ -19,9 +19,9 @@ COPY requirements.txt ./
 RUN uv venv .poke && \
     /bin/bash -c "source .poke/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"
 
-# Copy source code and database after dependencies are installed
+# Copy source code after dependencies are installed
 # This layer will only rebuild when source code changes
-# Note: embedding_cache/ is mounted as a volume in docker-compose
+# Note: pokemon_cards.db and embedding_cache/ are mounted as volumes in docker-compose
 COPY . .
 
 # Set environment variables for Python

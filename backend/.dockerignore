@@ -53,14 +53,15 @@ Thumbs.db
 *.log
 logs/
 
-# Database files (exclude all except pokemon_cards.db)
+# Database files (mounted as volumes in docker-compose)
+*.db
 *.sqlite
 *.sqlite3
-# Note: pokemon_cards.db is needed and will be included
 
 # Cache files in root directory (embedding_cache/ is mounted as volume)
 *.npy
 image_metadata.json
+*.pkl
 
 # Temporary files
 *.tmp

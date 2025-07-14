@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend/embedding_cache:/app/embedding_cache
+      - ./backend/pokemon_cards.db:/app/pokemon_cards.db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/api/health"]
       interval: 10s
