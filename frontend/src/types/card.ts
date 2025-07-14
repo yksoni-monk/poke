@@ -1,14 +1,26 @@
 
+export interface PricingInfo {
+  averagePrice: number | null;
+  priceSource: string | null;
+  currency: string;
+}
+
 export interface CardData {
   name: string;
   number: string;
-  set: string;
-  rarity: string;
-  price: string;
-  priceRange: string;
-  condition: string;
+  id: string;
   imageUrl: string;
-  description?: string;
+  artist?: string;
+  hp?: number;
+  rarity?: string;
+  supertype?: string;
+  set_name?: string;
+  abilities?: any[];
+  attacks?: any[];
+  types?: string[];
+  weaknesses?: any[];
+  resistances?: any[];
+  pricing?: PricingInfo;
 }
 
 export interface ScanResult {

@@ -8,6 +8,16 @@ interface CardDetailsProps {
 }
 
 const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNewScan }) => {
+  const formatPrice = (price: number | null, currency: string) => {
+    if (price === null) return 'Price not available';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(price);
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden h-full flex flex-col">
       {/* Header */}
@@ -50,6 +60,59 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
           <div className="bg-gray-50 rounded-xl p-3">
             <h3 className="text-lg font-semibold text-gray-900">{cardData.name}</h3>
             <p className="text-sm text-gray-600">#{cardData.number}</p>
+            {cardData.set_name && (
+              <p className="text-xs text-gray-500 mt-1">{cardData.set_name}</p>
+            )}
+          </div>
+
+          {/* Pricing Information */}
+          {cardData.pricing && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-3 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700">Average Price</h4>
+                  <p className="text-lg font-bold text-green-600">
+                    {formatPrice(cardData.pricing.averagePrice, cardData.pricing.currency)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">
+                    Source: {cardData.pricing.priceSource || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {cardData.pricing.currency}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Additional Card Info */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {cardData.rarity && (
+              <div className="bg-blue-50 rounded-lg p-2">
+                <span className="text-blue-700 font-medium">Rarity:</span>
+                <span className="text-blue-600 ml-1">{cardData.rarity}</span>
+              </div>
+            )}
+            {cardData.hp && (
+              <div className="bg-red-50 rounded-lg p-2">
+                <span className="text-red-700 font-medium">HP:</span>
+                <span className="text-red-600 ml-1">{cardData.hp}</span>
+              </div>
+            )}
+            {cardData.artist && (
+              <div className="bg-purple-50 rounded-lg p-2">
+                <span className="text-purple-700 font-medium">Artist:</span>
+                <span className="text-purple-600 ml-1">{cardData.artist}</span>
+              </div>
+            )}
+            {cardData.supertype && (
+              <div className="bg-orange-50 rounded-lg p-2">
+                <span className="text-orange-700 font-medium">Type:</span>
+                <span className="text-orange-600 ml-1">{cardData.supertype}</span>
+              </div>
+            )}
           </div>
         </div>
 

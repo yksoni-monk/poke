@@ -87,6 +87,59 @@ def get_card_from_db(card_id: str) -> Dict[str, Any]:
         logger.error(f"Database error: {err}")
         return None
 
+def get_average_price(card_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract average price information from card data.
+    
+    Args:
+        card_data: Card data from database
+        
+    Returns:
+        Dict with pricing information
+    """
+    pricing_info = {
+        "averagePrice": None,
+        "priceSource": None,
+        "currency": "USD"
+    }
+    
+    # Try to get price from TCGPlayer first (usually more reliable)
+    if card_data.get("tcgplayer_prices") and isinstance(card_data["tcgplayer_prices"], dict):
+        tcg_prices = card_data["tcgplayer_prices"]
+        
+        # Look for normal market price first
+        normal_prices = tcg_prices.get("normal")
+        if normal_prices and isinstance(normal_prices, dict) and normal_prices.get("market"):
+            pricing_info["averagePrice"] = normal_prices["market"]
+            pricing_info["priceSource"] = "TCGPlayer"
+        # Fallback to normal mid price
+        elif normal_prices and isinstance(normal_prices, dict) and normal_prices.get("mid"):
+            pricing_info["averagePrice"] = normal_prices["mid"]
+            pricing_info["priceSource"] = "TCGPlayer"
+        # Try holofoil market price
+        elif tcg_prices.get("holofoil") and isinstance(tcg_prices["holofoil"], dict) and tcg_prices["holofoil"].get("market"):
+            pricing_info["averagePrice"] = tcg_prices["holofoil"]["market"]
+            pricing_info["priceSource"] = "TCGPlayer"
+        # Try holofoil mid price
+        elif tcg_prices.get("holofoil") and isinstance(tcg_prices["holofoil"], dict) and tcg_prices["holofoil"].get("mid"):
+            pricing_info["averagePrice"] = tcg_prices["holofoil"]["mid"]
+            pricing_info["priceSource"] = "TCGPlayer"
+    
+    # Fallback to CardMarket if TCGPlayer doesn't have price
+    if pricing_info["averagePrice"] is None and card_data.get("cardmarket_prices") and isinstance(card_data["cardmarket_prices"], dict):
+        cm_prices = card_data["cardmarket_prices"]
+        
+        if cm_prices.get("averageSellPrice"):
+            pricing_info["averagePrice"] = cm_prices["averageSellPrice"]
+            pricing_info["priceSource"] = "CardMarket"
+            pricing_info["currency"] = "EUR"
+        elif cm_prices.get("trendPrice"):
+            pricing_info["averagePrice"] = cm_prices["trendPrice"]
+            pricing_info["priceSource"] = "CardMarket"
+            pricing_info["currency"] = "EUR"
+    
+    return pricing_info
+
 @api_router.post("/scan-card", response_model=Dict[str, Any])
 async def scan_card(image: UploadFile):
     """
@@ -161,6 +214,9 @@ async def scan_card(image: UploadFile):
             print(f"card_data: {card_data}")
             sys.stdout.flush()
             
+            # Get pricing information
+            pricing_info = get_average_price(card_data)
+            
             return {
                 "success": True,
                 "cardData": {
@@ -177,7 +233,8 @@ async def scan_card(image: UploadFile):
                     "attacks": card_data["attacks"],
                     "types": card_data["types"],
                     "weaknesses": card_data["weaknesses"],
-                    "resistances": card_data["resistances"]
+                    "resistances": card_data["resistances"],
+                    "pricing": pricing_info
                 }
             }
             
