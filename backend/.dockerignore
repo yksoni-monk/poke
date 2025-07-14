@@ -53,16 +53,14 @@ Thumbs.db
 *.log
 logs/
 
-# Database files
-*.db
+# Database files (exclude all except pokemon_cards.db)
 *.sqlite
 *.sqlite3
+# Note: pokemon_cards.db is needed and will be included
 
-# Cache directories
-embedding_cache/
+# Cache files in root directory (embedding_cache/ is mounted as volume)
 *.npy
 image_metadata.json
-card_names.csv
 
 # Temporary files
 *.tmp

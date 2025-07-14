@@ -11,17 +11,22 @@ RUN curl -Ls https://astral.sh/uv/install.sh | sh && \
 # Set workdir
 WORKDIR /app
 
-# Copy requirements and source code
+# Copy requirements first for better caching
 COPY requirements.txt ./
-COPY . ./
 
-# Create and activate virtual environment, install dependencies
+# Create virtual environment and install dependencies
+# This layer will be cached unless requirements.txt changes
 RUN uv venv .poke && \
     /bin/bash -c "source .poke/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"
 
+# Copy source code and database after dependencies are installed
+# This layer will only rebuild when source code changes
+# Note: embedding_cache/ is mounted as a volume in docker-compose
+COPY . .
+
 # Set environment variables for Python
-ENV VIRTUAL_ENV=/.poke
-ENV PATH="/.poke/bin:$PATH"
+ENV VIRTUAL_ENV=/app/.poke
+ENV PATH="/app/.poke/bin:$PATH"
 
 # Expose port
 EXPOSE 8000
