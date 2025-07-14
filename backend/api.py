@@ -8,6 +8,8 @@ from typing import List, Dict, Any
 from image_similarity import embedding_image_similarity
 import pandas as pd
 from fastapi import APIRouter
+import sqlite3
+import json
 
 #logging
 import logging
@@ -37,13 +39,53 @@ app = FastAPI(
 
 api_router = APIRouter(prefix="/v1/api")
 
-# Load card database
-card_db_file = "card_names.csv"
-if not os.path.exists(card_db_file):
-    raise RuntimeError("Card database not found. Please run create_card_db() first.")
-
-# Load card metadata
-card_df = pd.read_csv(card_db_file)
+def get_card_from_db(card_id: str) -> Dict[str, Any]:
+    """
+    Get card details from SQLite database by card ID.
+    
+    Args:
+        card_id: The Pokemon card ID
+        
+    Returns:
+        Dict containing card details
+    """
+    try:
+        conn = sqlite3.connect('pokemon_cards.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM pokemon_cards WHERE id = ?", (card_id,))
+        row = cursor.fetchone()
+        
+        if row is None:
+            return None
+            
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        
+        # Create dict from row data
+        card_data = dict(zip(columns, row))
+        
+        # Parse JSON fields
+        json_fields = ['abilities', 'attacks', 'subtypes', 'types', 'weaknesses', 
+                      'resistances', 'nationalPokedexNumbers', 'retreatCost',
+                      'cardmarket_prices', 'tcgplayer_prices']
+        
+        for field in json_fields:
+            if card_data.get(field) and isinstance(card_data[field], str):
+                try:
+                    card_data[field] = json.loads(card_data[field])
+                except json.JSONDecodeError:
+                    # Keep as string if JSON parsing fails
+                    pass
+        
+        cursor.close()
+        conn.close()
+        
+        return card_data
+        
+    except sqlite3.Error as err:
+        logger.error(f"Database error: {err}")
+        return None
 
 @api_router.post("/scan-card", response_model=Dict[str, Any])
 async def scan_card(image: UploadFile):
@@ -85,12 +127,12 @@ async def scan_card(image: UploadFile):
             logger.info(f"Reading image: {temp_path}")      
             print(f"Reading image: {temp_path}")
             sys.stdout.flush()
-            # Get similar card URLs
-            similar_urls = embedding_image_similarity(temp_path)
-            logger.info(f"embedding_image_similarity: {similar_urls}")            
-            print(f"embedding_image_similarity: {similar_urls}")
+            # Get similar card IDs
+            similar_card_ids = embedding_image_similarity(temp_path)
+            logger.info(f"embedding_image_similarity: {similar_card_ids}")            
+            print(f"embedding_image_similarity: {similar_card_ids}")
             sys.stdout.flush()
-            if not similar_urls:
+            if not similar_card_ids:
                 return JSONResponse(
                     status_code=404,
                     content={
@@ -99,22 +141,43 @@ async def scan_card(image: UploadFile):
                     }
                 )
             
-            # Get card details for the best match
-            best_match_url = similar_urls[0]
-            logger.info(f"best_match_url: {best_match_url}")
-            print(f"best_match_url: {best_match_url}")
+            # Get card details for the best match from SQLite database
+            best_match_card_id = similar_card_ids[0]
+            logger.info(f"best_match_card_id: {best_match_card_id}")
+            print(f"best_match_card_id: {best_match_card_id}")
             sys.stdout.flush()
-            card_info = card_df[card_df["card image url"] == best_match_url].iloc[0]
-            logger.info(f"card_info: {card_info}")
-            print(f"card_info: {card_info}")
+            
+            card_data = get_card_from_db(best_match_card_id)
+            if not card_data:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "success": False,
+                        "error": "Card not found in database"
+                    }
+                )
+            
+            logger.info(f"card_data: {card_data}")
+            print(f"card_data: {card_data}")
             sys.stdout.flush()
+            
             return {
                 "success": True,
                 "cardData": {
-                    "name": card_info["card name"],
-                    "number": card_info["card number"],
-                    "id": card_info["card id"],
-                    "imageUrl": best_match_url
+                    "name": card_data["name"],
+                    "number": card_data["number"],
+                    "id": card_data["id"],
+                    "imageUrl": card_data["image_large"],
+                    "artist": card_data["artist"],
+                    "hp": card_data["hp"],
+                    "rarity": card_data["rarity"],
+                    "supertype": card_data["supertype"],
+                    "set_name": card_data["set_name"],
+                    "abilities": card_data["abilities"],
+                    "attacks": card_data["attacks"],
+                    "types": card_data["types"],
+                    "weaknesses": card_data["weaknesses"],
+                    "resistances": card_data["resistances"]
                 }
             }
             

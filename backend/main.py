@@ -40,17 +40,17 @@ def create_card_db():
                 writer.writerow([card.name, card.id, card.number, card.images.large])
 
 def print_all_attributes(card):
-    print(f"Card name: {first_card.name}")
-    print(f"Card ID: {first_card.id}")
+    print(f"Card name: {card.name}")
+    print(f"Card ID: {card.id}")
     print("\nAll attributes and their values:")
     print("=" * 50)
     
     # Get all attributes of the card object
-    for attr_name in dir(first_card):
+    for attr_name in dir(card):
         # Skip private attributes and methods
         if not attr_name.startswith('_'):
             try:
-                attr_value = getattr(first_card, attr_name)
+                attr_value = getattr(card, attr_name)
                 # Skip methods
                 if not callable(attr_value):
                     print(f"{attr_name}: {attr_value}")
@@ -58,7 +58,7 @@ def print_all_attributes(card):
                 print(f"{attr_name}: Error accessing - {e}")
     
     print("=" * 50)
-    print(f"Total attributes found: {len([attr for attr in dir(first_card) if not attr.startswith('_') and not callable(getattr(first_card, attr, None))])}")
+    print(f"Total attributes found: {len([attr for attr in dir(card) if not attr.startswith('_') and not callable(getattr(card, attr, None))])}")
     
 ## read all the attributes from Card class and save it to a tiny mysql database
 def create_card_extensive_db():
@@ -326,20 +326,48 @@ def insert_card_to_db(card):
 
 # check if the card name is in the card_db file
 def check_card_name(card_name):
-    with open(card_db_file, "r") as f:
-        reader = csv.reader(f)
-        pandas_df = pd.DataFrame(reader, columns=["card name", "card id", "card number", "card image url"])
-        #print(pandas_df["card name"].values)
-        return card_name in pandas_df["card name"].values
+    """Check if a card name exists in the SQLite database"""
+    try:
+        conn = sqlite3.connect('pokemon_cards.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM pokemon_cards WHERE name = ?", (card_name,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return result is not None
+    except sqlite3.Error as err:
+        print(f"Database error: {err}")
+        return False
 
 def search_card(card_name):
-    # open the card_names.txt file to search a particular card name. name can yield multiple rows
-    with open(card_db_file, "r") as f:
-        reader = csv.reader(f)
-        pandas_df = pd.DataFrame(reader, columns=["card name", "card id", "card number", "card image url"])
-        df = pandas_df[pandas_df["card name"] == card_name]
-        #print(df)
-        return df
+    """Search for cards by name in the SQLite database"""
+    try:
+        conn = sqlite3.connect('pokemon_cards.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM pokemon_cards WHERE name = ?", (card_name,))
+        rows = cursor.fetchall()
+        
+        if not rows:
+            cursor.close()
+            conn.close()
+            return []
+        
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        
+        # Convert to list of dictionaries
+        cards = []
+        for row in rows:
+            card_data = dict(zip(columns, row))
+            cards.append(card_data)
+        
+        cursor.close()
+        conn.close()
+        return cards
+        
+    except sqlite3.Error as err:
+        print(f"Database error: {err}")
+        return []
 
 
 
@@ -349,80 +377,14 @@ def search_card(card_name):
 
 if __name__ == "__main__":
 
-
+    # First create the extensive database
     create_card_extensive_db()
     
-    exit(0)
-    
-    create_card_db()
-    image_path = "/Users/yksoni/Downloads/pokemon4.jpeg"
-
-    # for each image in the card_db, create a vector embedding and save it to a file
+    # Then create embeddings with the new card ID format
+    print("\nCreating embeddings with card IDs...")
     create_embeddings(card_db_file)
-    print("Embeddings created")
-    # now use faiss for similarity search of image file at 'image_path' using the embeddings.npy file
-    # first load the embeddings.npy file
-    embedding_image_similarity(image_path)
-
+    print("Embeddings created successfully!")
     
     exit(0)
-
-
-        # First, let's examine one card instance to see all attributes
-    print("Getting first card to examine attributes...")
-    cards = Card.all()
-    if cards:
-        first_card = cards[0]
-        print_all_attributes(first_card)
-
-    #first open the card_db files and get the panda dataframe
-    df = pd.read_csv(card_db_file)
-    # open embeddings.npy files and store the embeddings there
-    
-
-
-    text = ocr_image(image_path)
-    # from the text, find the card name. Normally the card name is in the first or the second line.
-    # so parse the first two lines and check one by one if the card name is in the card_db file. If not, search the next line.
-    card_name = text.split("\n")[0]
-    # remove any trailing special characters
-    card_name = card_name.strip()
-    print(card_name)
-    if not check_card_name(card_name):
-        card_name = text.split("\n")[1]
-        print(card_name)
-        # remove any trailing special character
-        card_name = card_name.strip()
-    
-    if not check_card_name(card_name):
-        print("Card name not found in the card_db file")
-        exit(1)
-    df = search_card(card_name)
-    # get the image url of cards in an array
-   
-    final_card_number = ""
-    highest_similarity = 0
-    final_image_url = ""
-
-    #print(image_urls)
-    # download the image from the image_url
-    # iterate over the df. For each row, get the image url and do image similarity.
-    # if the new similarity is higher than the previous one, update the final_card_number
-
-    for index, row in df.iterrows():
-        image_url = row["card image url"]
-        image = requests.get(image_url)
-        # save the image to a file
-        with open("image.jpg", "wb") as f:
-            f.write(image.content)
-        similarity = get_image_similarity("image.jpg", image_path)
-        if similarity > highest_similarity:
-            highest_similarity = similarity
-            final_card_number = row["card number"]
-            final_image_url = image_url
-    print(f"The final card number is: {final_card_number}")
-    print(f"The final image url is: {final_image_url}")
-    
-        
 
 

@@ -125,13 +125,13 @@ def get_image_embedding(image_content, use_cache=True):
 
 def embedding_image_similarity(image_path):
     """
-    Perform similarity search to find the top 10 matching image URLs using NumPy.
+    Perform similarity search to find the top 10 matching card IDs using NumPy.
 
     Args:
         image_path (str): Path to the query image (local path or URL).
 
     Returns:
-        list: Top 10 matching image URLs from the database.
+        list: Top 10 matching card IDs from the database.
     """
     clip = ImageEmbeddingModel()
     embedding_file = clip.embedding_file
@@ -207,20 +207,20 @@ def embedding_image_similarity(image_path):
     # Find top 10 matches
     top_10_indices = np.argsort(similarities)[-10:][::-1]
     top_similarities = similarities[top_10_indices]
-    top_urls = [image_metadata[idx]["url"] for idx in top_10_indices]
+    top_card_ids = [image_metadata[idx]["card_id"] for idx in top_10_indices]
 
-    print(f"Top 10 URLs:")
+    print(f"Top 10 Card IDs:")
     for i, (idx, sim) in enumerate(zip(top_10_indices, top_similarities), 1):
-        print(f"Rank {i}: URL: {image_metadata[idx]['url']}, Score: {sim:.4f}")
+        print(f"Rank {i}: Card ID: {image_metadata[idx]['card_id']}, Score: {sim:.4f}")
 
-    return top_urls
+    return top_card_ids
 
 def create_embeddings(card_db_file):
     """
     Create embeddings for images in the card database and save to embeddings.npy and image_metadata.json.
 
     Args:
-        card_db_file (str): Path to CSV file containing card data with 'card image url' column.
+        card_db_file (str): Path to CSV file containing card data with 'card image url' and 'card id' columns.
     """
     df = pd.read_csv(card_db_file)
 
@@ -236,6 +236,7 @@ def create_embeddings(card_db_file):
 
     for index, row in df.iterrows():
         image_url = row["card image url"].strip()
+        card_id = row["card id"].strip()
         try:
             response = requests.get(image_url, timeout=10)
             response.raise_for_status()
@@ -250,7 +251,7 @@ def create_embeddings(card_db_file):
             embedding = np.array(embedding, dtype=np.float32).reshape(1, -1)
 
             embeddings.append(embedding)
-            image_metadata.append({"index": index, "url": image_url})
+            image_metadata.append({"index": index, "card_id": card_id})
 
         except (requests.RequestException, ValueError, Exception) as e:
             print(f"Error processing {image_url}: {e}")

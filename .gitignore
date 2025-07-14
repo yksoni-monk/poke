@@ -20,6 +20,7 @@ embeddings.npy
 image_metadata.json
 poke_auth.pem
 .poke
+*/pokemon_cards.db
 # Logs
 logs
 *.log
