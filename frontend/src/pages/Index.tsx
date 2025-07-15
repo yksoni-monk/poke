@@ -6,6 +6,7 @@ import { CardApiService } from '../services/cardApi';
 import { Camera, Upload, ArrowLeft } from 'lucide-react';
 import ReactCrop, { Crop as CropType, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { resizeImage } from '../utils/imageUtils';
 
 const Index = () => {
   console.log('Index component rendering');
@@ -31,7 +32,7 @@ const Index = () => {
     setCurrentMode('menu');
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -47,15 +48,21 @@ const Index = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        setUploadedImage(result);
-        setCurrentMode('crop');
-      }
-    };
-    reader.readAsDataURL(file);
+    // Resize image before cropping for consistent crop UI
+    try {
+      const resizedBlob = await resizeImage(file, 1200, 1200);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          setUploadedImage(result);
+          setCurrentMode('crop');
+        }
+      };
+      reader.readAsDataURL(resizedBlob);
+    } catch (err) {
+      alert('Failed to process image.');
+    }
   };
 
   const handleUploadClick = () => {
