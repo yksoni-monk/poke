@@ -19,14 +19,13 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl overflow-hidden h-full flex flex-col">
+    <div className="bg-white rounded-2xl shadow-xl overflow-hidden h-full flex flex-col min-h-0">
       {/* Header */}
       <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-3 text-center">
         <h2 className="text-lg font-bold text-white">Card Identified! ✨</h2>
       </div>
-      
-      {/* Card Images */}
-      <div className="flex-1 p-4 flex flex-col">
+      {/* Main Content Scrollable */}
+      <div className="flex-1 min-h-0 overflow-auto p-4 flex flex-col">
         <div className="grid grid-cols-2 gap-4 flex-1">
           {/* Captured Image */}
           <div className="flex flex-col">
@@ -41,7 +40,6 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
               )}
             </div>
           </div>
-          
           {/* Reference Image */}
           <div className="flex flex-col">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Reference</h4>
@@ -54,7 +52,6 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
             </div>
           </div>
         </div>
-        
         {/* Card Details */}
         <div className="mt-4 space-y-2">
           <div className="bg-gray-50 rounded-xl p-3">
@@ -64,7 +61,6 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
               <p className="text-xs text-gray-500 mt-1">{cardData.set_name}</p>
             )}
           </div>
-
           {/* Pricing Information */}
           {cardData.pricing && (
             <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-3 border border-green-200">
@@ -86,7 +82,6 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
               </div>
             </div>
           )}
-
           {/* Additional Card Info */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             {cardData.rarity && (
@@ -115,16 +110,15 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
             )}
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="mt-4">
-          <button
-            onClick={onNewScan}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm"
-          >
-            Scan Another Card
-          </button>
-        </div>
+      </div>
+      {/* Sticky Action Button */}
+      <div className="sticky bottom-0 left-0 right-0 bg-white p-4 z-10 border-t border-gray-200">
+        <button
+          onClick={onNewScan}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm"
+        >
+          Scan Another Card
+        </button>
       </div>
     </div>
   );
