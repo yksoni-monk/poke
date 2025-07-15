@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, VideoOff, Crop, RotateCcw } from 'lucide-react';
 import ReactCrop, { Crop as CropType, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { resizeImage, getCroppedImg, handleCropCompleteUtil } from '../utils/imageUtils';
 
 interface CameraCaptureProps {
   onImageCapture: (imageDataUrl: string) => void;
@@ -123,44 +124,6 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     setCrop(crop);
   }, []);
 
-  const getCroppedImg = useCallback(
-    (image: HTMLImageElement, crop: PixelCrop): Promise<string> => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) {
-        throw new Error('No 2d context');
-      }
-
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-
-      ctx.imageSmoothingQuality = 'high';
-
-      ctx.drawImage(
-        image,
-        crop.x * scaleX,
-        crop.y * scaleY,
-        crop.width * scaleX,
-        crop.height * scaleY,
-        0,
-        0,
-        crop.width,
-        crop.height,
-      );
-
-      return new Promise((resolve) => {
-        // Return base64 data URL instead of blob URL
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-        resolve(dataUrl);
-      });
-    },
-    []
-  );
-
   const captureImage = useCallback(() => {
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
       console.error('captureImage: Video, canvas, or video not ready');
@@ -235,28 +198,23 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
     }
   }, [isVideoReady]);
 
-  const handleCropComplete = useCallback(async () => {
-    if (!capturedImage || !completedCrop) return;
-
-    const image = new Image();
-    image.src = capturedImage;
-    
-    await new Promise((resolve) => {
-      image.onload = resolve;
-    });
-
-    try {
-      const croppedImageUrl = await getCroppedImg(image, completedCrop);
-      onImageCapture(croppedImageUrl);
-      setCapturedImage(null);
-      setIsCropping(false);
-      setCrop(undefined);
-      setCompletedCrop(undefined);
-    } catch (err) {
-      console.error('Crop error:', err);
-      alert('Crop failed.');
-    }
-  }, [capturedImage, completedCrop, getCroppedImg, onImageCapture]);
+  const handleCropComplete = useCallback(() => {
+    handleCropCompleteUtil(
+      capturedImage,
+      completedCrop,
+      (croppedImageUrl) => {
+        onImageCapture(croppedImageUrl);
+        setCapturedImage(null);
+        setIsCropping(false);
+        setCrop(undefined);
+        setCompletedCrop(undefined);
+      },
+      (err) => {
+        console.error('Crop error:', err);
+        alert('Crop failed.');
+      }
+    );
+  }, [capturedImage, completedCrop, onImageCapture]);
 
   const handleRetake = useCallback(() => {
     setCapturedImage(null);

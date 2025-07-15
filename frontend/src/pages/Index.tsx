@@ -6,7 +6,7 @@ import { CardApiService } from '../services/cardApi';
 import { Camera, Upload, ArrowLeft } from 'lucide-react';
 import ReactCrop, { Crop as CropType, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { resizeImage } from '../utils/imageUtils';
+import { resizeImage, getCroppedImg, validateImageFile, resetFileInput, handleCropCompleteUtil } from '../utils/imageUtils';
 
 const Index = () => {
   console.log('Index component rendering');
@@ -36,15 +36,10 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
-      return;
-    }
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB.');
+    // Validate file type and size using shared utility
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      alert(validation.error);
       return;
     }
 
@@ -69,10 +64,8 @@ const Index = () => {
     fileInputRef.current?.click();
   };
 
-  const resetFileInput = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const resetFileInputHandler = () => {
+    resetFileInput(fileInputRef.current);
   };
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -94,81 +87,23 @@ const Index = () => {
     setCrop(crop);
   }, []);
 
-  const getCroppedImg = useCallback(
-    (image: HTMLImageElement, crop: PixelCrop): Promise<string> => {
-      console.log('Cropping with dimensions:', crop);
-      console.log('Image display size:', image.width, 'x', image.height);
-      console.log('Image natural size:', image.naturalWidth, 'x', image.naturalHeight);
-      
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) {
-        throw new Error('No 2d context');
+  const handleCropComplete = useCallback(() => {
+    handleCropCompleteUtil(
+      uploadedImage,
+      completedCrop,
+      (croppedImageUrl) => {
+        setCapturedImage(croppedImageUrl);
+        setUploadedImage(null);
+        setCurrentMode('menu');
+        setCrop(undefined);
+        setCompletedCrop(undefined);
+      },
+      (err) => {
+        console.error('Crop error:', err);
+        alert('Crop failed.');
       }
-
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-      
-      console.log('Scale factors:', scaleX, scaleY);
-
-      // Calculate actual crop dimensions in natural image coordinates
-      const naturalCropX = crop.x * scaleX;
-      const naturalCropY = crop.y * scaleY;
-      const naturalCropWidth = crop.width * scaleX;
-      const naturalCropHeight = crop.height * scaleY;
-      
-      console.log('Natural crop dimensions:', naturalCropX, naturalCropY, naturalCropWidth, naturalCropHeight);
-
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-
-      ctx.imageSmoothingQuality = 'high';
-
-      ctx.drawImage(
-        image,
-        naturalCropX,
-        naturalCropY,
-        naturalCropWidth,
-        naturalCropHeight,
-        0,
-        0,
-        crop.width,
-        crop.height,
-      );
-
-      return new Promise((resolve) => {
-        // Return base64 data URL instead of blob URL
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-        console.log('Crop completed, canvas size:', canvas.width, 'x', canvas.height);
-        resolve(dataUrl);
-      });
-    },
-    []
-  );
-
-  const handleCropComplete = useCallback(async () => {
-    if (!uploadedImage || !completedCrop) return;
-
-    const image = new Image();
-    image.src = uploadedImage;
-    
-    await new Promise((resolve) => {
-      image.onload = resolve;
-    });
-
-    try {
-      const croppedImageUrl = await getCroppedImg(image, completedCrop);
-      setCapturedImage(croppedImageUrl);
-      setUploadedImage(null);
-      setCurrentMode('menu');
-      setCrop(undefined);
-      setCompletedCrop(undefined);
-    } catch (err) {
-      console.error('Crop error:', err);
-      alert('Crop failed.');
-    }
-  }, [uploadedImage, completedCrop, getCroppedImg]);
+    );
+  }, [uploadedImage, completedCrop]);
 
   const handleCropRetake = useCallback(() => {
     setUploadedImage(null);
@@ -268,7 +203,7 @@ const Index = () => {
           type="file"
           accept="image/*"
           onChange={handleFileUpload}
-          onClick={resetFileInput}
+          onClick={resetFileInputHandler}
           className="hidden"
         />
       </div>
