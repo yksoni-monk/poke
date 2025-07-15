@@ -211,7 +211,20 @@ def embedding_image_similarity(image_path):
 
     print(f"Top 10 Card IDs:")
     for i, (idx, sim) in enumerate(zip(top_10_indices, top_similarities), 1):
-        print(f"Rank {i}: Card ID: {image_metadata[idx]['card_id']}, Score: {sim:.4f}")
+        card_id = image_metadata[idx]['card_id']
+        # Fetch card name from SQLite database
+        import sqlite3
+        try:
+            conn = sqlite3.connect('pokemon_cards.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM pokemon_cards WHERE id = ?", (card_id,))
+            result = cursor.fetchone()
+            card_name = result[0] if result else "Unknown"
+            cursor.close()
+            conn.close()
+        except:
+            card_name = "Unknown"
+        print(f"Rank {i}: Card ID: {card_id}, Name: {card_name}, Score: {sim:.4f}")
 
     return top_card_ids
 
