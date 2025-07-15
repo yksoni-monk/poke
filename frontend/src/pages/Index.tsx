@@ -70,6 +70,8 @@ const Index = () => {
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
+    console.log('Image loaded - Display size:', width, 'x', height);
+    console.log('Image natural size:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
     
     // Create a centered crop with 5:7 aspect ratio
     const crop = centerCrop(
@@ -86,11 +88,16 @@ const Index = () => {
       height,
     );
 
+    console.log('Initial crop:', crop);
     setCrop(crop);
   }, []);
 
   const getCroppedImg = useCallback(
     (image: HTMLImageElement, crop: PixelCrop): Promise<string> => {
+      console.log('Cropping with dimensions:', crop);
+      console.log('Image display size:', image.width, 'x', image.height);
+      console.log('Image natural size:', image.naturalWidth, 'x', image.naturalHeight);
+      
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
@@ -100,6 +107,16 @@ const Index = () => {
 
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
+      
+      console.log('Scale factors:', scaleX, scaleY);
+
+      // Calculate actual crop dimensions in natural image coordinates
+      const naturalCropX = crop.x * scaleX;
+      const naturalCropY = crop.y * scaleY;
+      const naturalCropWidth = crop.width * scaleX;
+      const naturalCropHeight = crop.height * scaleY;
+      
+      console.log('Natural crop dimensions:', naturalCropX, naturalCropY, naturalCropWidth, naturalCropHeight);
 
       canvas.width = crop.width;
       canvas.height = crop.height;
@@ -108,10 +125,10 @@ const Index = () => {
 
       ctx.drawImage(
         image,
-        crop.x * scaleX,
-        crop.y * scaleY,
-        crop.width * scaleX,
-        crop.height * scaleY,
+        naturalCropX,
+        naturalCropY,
+        naturalCropWidth,
+        naturalCropHeight,
         0,
         0,
         crop.width,
@@ -121,6 +138,7 @@ const Index = () => {
       return new Promise((resolve) => {
         // Return base64 data URL instead of blob URL
         const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        console.log('Crop completed, canvas size:', canvas.width, 'x', canvas.height);
         resolve(dataUrl);
       });
     },
@@ -310,12 +328,14 @@ const Index = () => {
             minHeight={100}
             keepSelection
             className="max-h-full"
+            style={{ touchAction: 'none' }}
           >
             <img
               src={uploadedImage}
               onLoad={onImageLoad}
               alt="Uploaded card"
               className="max-w-full max-h-full object-contain"
+              style={{ touchAction: 'none' }}
             />
           </ReactCrop>
         </div>
