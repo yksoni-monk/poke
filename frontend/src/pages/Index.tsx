@@ -69,10 +69,7 @@ const Index = () => {
   };
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    console.log('Image loaded - Display size:', width, 'x', height);
-    console.log('Image natural size:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-    
+    const { naturalWidth, naturalHeight } = e.currentTarget;
     // Create a centered crop with 5:7 aspect ratio
     const crop = centerCrop(
       makeAspectCrop(
@@ -81,14 +78,12 @@ const Index = () => {
           width: 90,
         },
         CARD_ASPECT_RATIO,
-        width,
-        height,
+        naturalWidth,
+        naturalHeight,
       ),
-      width,
-      height,
+      naturalWidth,
+      naturalHeight,
     );
-
-    console.log('Initial crop:', crop);
     setCrop(crop);
   }, []);
 

@@ -103,7 +103,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   }, [startCamera]);
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
+    const { naturalWidth, naturalHeight } = e.currentTarget;
     
     // Create a centered crop with 5:7 aspect ratio
     const crop = centerCrop(
@@ -113,11 +113,11 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           width: 90,
         },
         CARD_ASPECT_RATIO,
-        width,
-        height,
+        naturalWidth,
+        naturalHeight,
       ),
-      width,
-      height,
+      naturalWidth,
+      naturalHeight,
     );
 
     setCrop(crop);
