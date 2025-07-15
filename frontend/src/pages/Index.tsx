@@ -4,7 +4,7 @@ import CardDetails from '../components/CardDetails';
 import { CardData } from '../types/card';
 import { CardApiService } from '../services/cardApi';
 import { Camera, Upload, ArrowLeft } from 'lucide-react';
-import ReactCrop, { Crop as CropType, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
+import ReactCrop, { Crop as CropType, PixelCrop, PercentCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { resizeImage, getCroppedImg, validateImageFile, resetFileInput, handleCropCompleteUtil } from '../utils/imageUtils';
 
@@ -17,8 +17,9 @@ const Index = () => {
   const [currentMode, setCurrentMode] = useState<'menu' | 'camera' | 'upload' | 'crop'>('menu');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropType>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | PercentCrop>();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cropImageRef = useRef<HTMLImageElement | null>(null);
 
   // Pokemon card aspect ratio is 5:7 (width:height)
   const CARD_ASPECT_RATIO = 5 / 7;
@@ -88,6 +89,10 @@ const Index = () => {
   }, []);
 
   const handleCropComplete = useCallback(() => {
+    if (!uploadedImage || !completedCrop) return;
+    const img = cropImageRef.current;
+    const displayedWidth = img?.width;
+    const displayedHeight = img?.height;
     handleCropCompleteUtil(
       uploadedImage,
       completedCrop,
@@ -101,7 +106,9 @@ const Index = () => {
       (err) => {
         console.error('Crop error:', err);
         alert('Crop failed.');
-      }
+      },
+      displayedWidth,
+      displayedHeight
     );
   }, [uploadedImage, completedCrop]);
 
@@ -259,7 +266,10 @@ const Index = () => {
           <ReactCrop
             crop={crop}
             onChange={(_, percentCrop) => setCrop(percentCrop)}
-            onComplete={(c) => setCompletedCrop(c)}
+            onComplete={(pixelCrop, percentCrop) => {
+              console.log('ReactCrop onComplete args:', pixelCrop, percentCrop);
+              setCompletedCrop(percentCrop); // Use percent crop
+            }}
             aspect={CARD_ASPECT_RATIO}
             minWidth={100}
             minHeight={100}
@@ -268,6 +278,7 @@ const Index = () => {
             style={{ touchAction: 'none' }}
           >
             <img
+              ref={cropImageRef}
               src={uploadedImage}
               onLoad={onImageLoad}
               alt="Uploaded card"
