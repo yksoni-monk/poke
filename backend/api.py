@@ -313,6 +313,7 @@ async def get_card(card_id: str):
     if not card_data:
         raise HTTPException(status_code=404, detail="Card not found")
     card_data['imageUrl'] = card_data.get('image_large')
+    card_data['pricing'] = get_average_price(card_data)
     return card_data
 
 @api_router.get("/health")

@@ -254,7 +254,7 @@ const Index = () => {
 
   // Show library page
   if (showLibrary) {
-    return <Library />;
+    return <Library onBack={() => setShowLibrary(false)} />;
   }
 
   // Show camera capture

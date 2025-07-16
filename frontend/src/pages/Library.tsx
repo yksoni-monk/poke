@@ -2,8 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { CardData } from '../types/card';
 import { CardApiService } from '../services/cardApi';
 import CardDetails from '../components/CardDetails';
+import LibraryCardDetails from '../components/LibraryCardDetails';
 
-const Library: React.FC = () => {
+interface LibraryProps {
+  onBack?: () => void;
+}
+
+const Library: React.FC<LibraryProps> = ({ onBack }) => {
   const [cardIds, setCardIds] = useState<string[]>([]);
   const [cards, setCards] = useState<CardData[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
@@ -56,20 +61,24 @@ const Library: React.FC = () => {
 
   if (selectedCard) {
     return (
-      <div className="h-dvh flex flex-col">
-        <div className="flex-none p-2 bg-blue-900 text-white text-center">
-          <button onClick={() => setSelectedCard(null)} className="text-blue-200 hover:text-white">&larr; Back to Library</button>
-        </div>
-        <div className="flex-1 min-h-0">
-          <CardDetails cardData={selectedCard} capturedImage={null} onNewScan={() => setSelectedCard(null)} />
-        </div>
-      </div>
+      <LibraryCardDetails cardData={selectedCard} onBack={() => setSelectedCard(null)} />
     );
   }
 
   return (
     <div className="h-dvh flex flex-col bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800">
-      <div className="flex-none p-4 text-center text-white text-xl font-bold">Your Library</div>
+      <div className="flex-none p-4 text-center text-white text-xl font-bold flex items-center justify-between">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-blue-200 hover:text-white text-base px-2 py-1 rounded bg-blue-900/40"
+          >
+            &larr; Back to Home
+          </button>
+        )}
+        <span className="flex-1 text-center">Your Library</span>
+        <span className="w-32" /> {/* Spacer for symmetry */}
+      </div>
       <div className="flex-1 min-h-0 overflow-auto p-4">
         {loading && <div className="text-white">Loading...</div>}
         {error && <div className="text-red-300">{error}</div>}
