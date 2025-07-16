@@ -51,4 +51,26 @@ export class CardApiService {
     }
     return new Blob([u8arr], { type: mime });
   }
+
+  static async addToLibrary(cardId: string): Promise<{ success: boolean; added?: boolean }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/v1/api/library/add?card_id=${encodeURIComponent(cardId)}`, {
+      method: 'POST',
+    });
+    return response.json();
+  }
+
+  static async fetchLibrary(): Promise<{ success: boolean; card_ids: string[] }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/v1/api/library`);
+    return response.json();
+  }
+
+  static async getCardById(cardId: string): Promise<CardData | null> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/v1/api/card/${encodeURIComponent(cardId)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data && data.name ? data : null;
+  }
 }

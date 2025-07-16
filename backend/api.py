@@ -10,6 +10,7 @@ import pandas as pd
 from fastapi import APIRouter
 import sqlite3
 import json
+import threading
 
 #logging
 import logging
@@ -38,6 +39,45 @@ app = FastAPI(
 )
 
 api_router = APIRouter(prefix="/v1/api")
+
+def create_user_library_table():
+    conn = sqlite3.connect('pokemon_cards.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_library (
+            user_id TEXT NOT NULL,
+            card_id TEXT NOT NULL,
+            PRIMARY KEY (user_id, card_id)
+        )
+    ''')
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# Ensure table is created at startup (thread-safe)
+threading.Thread(target=create_user_library_table).start()
+
+def get_user_library(user_id: str) -> list:
+    conn = sqlite3.connect('pokemon_cards.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT card_id FROM user_library WHERE user_id = ?', (user_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [row[0] for row in rows]
+
+def add_card_to_library(user_id: str, card_id: str) -> bool:
+    conn = sqlite3.connect('pokemon_cards.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute('INSERT OR IGNORE INTO user_library (user_id, card_id) VALUES (?, ?)', (user_id, card_id))
+        conn.commit()
+        added = cursor.rowcount > 0
+    except Exception as e:
+        added = False
+    cursor.close()
+    conn.close()
+    return added
 
 def get_card_from_db(card_id: str) -> Dict[str, Any]:
     """
@@ -252,6 +292,27 @@ async def scan_card(image: UploadFile):
         print(f"Unexpected error: {str(e)}")
         sys.stdout.flush()
         raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post('/library/add')
+async def add_to_library(card_id: str):
+    user_id = 'poke-master'
+    if not card_id:
+        raise HTTPException(status_code=400, detail='card_id is required')
+    added = add_card_to_library(user_id, card_id)
+    return { 'success': True, 'added': added }
+
+@api_router.get('/library')
+async def get_library():
+    user_id = 'poke-master'
+    card_ids = get_user_library(user_id)
+    return { 'success': True, 'card_ids': card_ids }
+
+@api_router.get('/card/{card_id}')
+async def get_card(card_id: str):
+    card_data = get_card_from_db(card_id)
+    if not card_data:
+        raise HTTPException(status_code=404, detail="Card not found")
+    return card_data
 
 @api_router.get("/health")
 async def health_check():

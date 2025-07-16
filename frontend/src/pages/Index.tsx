@@ -7,6 +7,7 @@ import { Camera, Upload, ArrowLeft } from 'lucide-react';
 import ReactCrop, { Crop as CropType, PixelCrop, PercentCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { resizeImage, getCroppedImg, validateImageFile, resetFileInput, handleCropCompleteUtil } from '../utils/imageUtils';
+import Library from './Library';
 
 const Index = () => {
   console.log('Index component rendering');
@@ -20,12 +21,24 @@ const Index = () => {
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | PercentCrop>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropImageRef = useRef<HTMLImageElement | null>(null);
+  const [libraryIds, setLibraryIds] = useState<string[]>([]);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   // Pokemon card aspect ratio is 5:7 (width:height)
   const CARD_ASPECT_RATIO = 5 / 7;
 
   useEffect(() => {
     console.log('Index component mounted');
+    // Fetch library on mount
+    const fetchLibrary = async () => {
+      try {
+        const data = await CardApiService.fetchLibrary();
+        if (data.success) {
+          setLibraryIds(data.card_ids || []);
+        }
+      } catch {}
+    };
+    fetchLibrary();
   }, []);
 
   const handleImageCapture = (imageDataUrl: string) => {
@@ -164,8 +177,19 @@ const Index = () => {
     setCompletedCrop(undefined);
   };
 
+  const handleAddToLibrary = async () => {
+    console.log('Add to Library button clicked');
+    if (!cardData) return;
+    try {
+      const data = await CardApiService.addToLibrary(cardData.id);
+      if (data.success) {
+        setLibraryIds((prev) => [...prev, cardData.id]);
+      }
+    } catch {}
+  };
+
   // Show main menu
-  if (currentMode === 'menu' && !capturedImage && !cardData) {
+  if (currentMode === 'menu' && !capturedImage && !cardData && !showLibrary) {
     return (
       <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
         <div className="flex-none text-center py-2">
@@ -201,9 +225,20 @@ const Index = () => {
               <h3 className="text-white font-semibold mb-2">Upload Image</h3>
               <p className="text-blue-200 text-xs">Select image from gallery</p>
             </button>
+
+            {/* Library */}
+            <button
+              onClick={() => setShowLibrary(true)}
+              className="col-span-2 bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center hover:bg-white/20 transition-all border border-white/20 mt-2"
+            >
+              <div className="w-16 h-16 mx-auto mb-4 bg-purple-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-2xl font-bold">📚</span>
+              </div>
+              <h3 className="text-white font-semibold mb-2">View Library</h3>
+              <p className="text-blue-200 text-xs">Browse your saved cards</p>
+            </button>
           </div>
         </div>
-
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -215,6 +250,11 @@ const Index = () => {
         />
       </div>
     );
+  }
+
+  // Show library page
+  if (showLibrary) {
+    return <Library />;
   }
 
   // Show camera capture
@@ -367,6 +407,7 @@ const Index = () => {
 
   // Show card details
   if (cardData) {
+    const inLibrary = libraryIds.includes(cardData.id);
     return (
       <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
         <div className="flex-none text-center py-2">
@@ -383,6 +424,8 @@ const Index = () => {
               cardData={cardData} 
               capturedImage={capturedImage}
               onNewScan={handleNewScan}
+              inLibrary={inLibrary}
+              onAddToLibrary={handleAddToLibrary}
             />
           </div>
         </div>

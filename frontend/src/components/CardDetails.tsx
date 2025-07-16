@@ -5,9 +5,11 @@ interface CardDetailsProps {
   cardData: CardData;
   capturedImage: string | null;
   onNewScan: () => void;
+  inLibrary?: boolean;
+  onAddToLibrary?: () => void;
 }
 
-const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNewScan }) => {
+const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNewScan, inLibrary, onAddToLibrary }) => {
   const formatPrice = (price: number | null, currency: string) => {
     if (price === null) return 'Price not available';
     return new Intl.NumberFormat('en-US', {
@@ -112,12 +114,19 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
         </div>
       </div>
       {/* Sticky Action Button */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white p-4 z-10 border-t border-gray-200">
+      <div className="sticky bottom-0 left-0 right-0 bg-white p-4 z-10 border-t border-gray-200 flex gap-4">
         <button
           onClick={onNewScan}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm"
+          className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2.5 px-4 rounded-xl font-medium transition-colors text-sm"
         >
           Scan Another Card
+        </button>
+        <button
+          onClick={onAddToLibrary}
+          disabled={inLibrary}
+          className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-colors text-sm ${inLibrary ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+        >
+          {inLibrary ? 'In Library' : 'Add to Library'}
         </button>
       </div>
     </div>
