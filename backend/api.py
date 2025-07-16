@@ -312,6 +312,7 @@ async def get_card(card_id: str):
     card_data = get_card_from_db(card_id)
     if not card_data:
         raise HTTPException(status_code=404, detail="Card not found")
+    card_data['imageUrl'] = card_data.get('image_large')
     return card_data
 
 @api_router.get("/health")
