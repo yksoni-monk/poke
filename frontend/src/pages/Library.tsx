@@ -67,36 +67,67 @@ const Library: React.FC<LibraryProps> = ({ onBack }) => {
 
   return (
     <div className="h-dvh flex flex-col bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800">
-      <div className="flex-none p-4 text-center text-white text-xl font-bold flex items-center justify-between">
+      {/* Header */}
+      <div className="flex-none p-6 text-center text-white flex items-center justify-between">
         {onBack && (
           <button
             onClick={onBack}
-            className="text-blue-200 hover:text-white text-base px-2 py-1 rounded bg-blue-900/40"
+            className="text-blue-200 hover:text-white text-base px-4 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-200"
           >
             &larr; Back to Home
           </button>
         )}
-        <span className="flex-1 text-center">Your Library</span>
+        <h1 className="flex-1 text-center text-2xl font-bold">Your Library</h1>
         <span className="w-32" /> {/* Spacer for symmetry */}
       </div>
-      <div className="flex-1 min-h-0 overflow-auto p-4">
-        {loading && <div className="text-white">Loading...</div>}
-        {error && <div className="text-red-300">{error}</div>}
-        {!loading && !error && cards.length === 0 && (
-          <div className="text-blue-200 text-center">No cards in your library yet.</div>
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-auto p-6">
+        {loading && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-white text-lg">Loading your collection...</div>
+          </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
-          {cards.map(card => (
-            <div
-              key={card.id}
-              className="bg-white/10 rounded-xl p-2 flex flex-col items-center cursor-pointer hover:bg-white/20 transition"
-              onClick={() => setSelectedCard(card)}
-            >
-              <img src={card.imageUrl} alt={card.name} className="w-24 h-32 object-contain mb-2" />
-              <div className="text-white text-sm font-semibold text-center">{card.name}</div>
+        
+        {error && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-red-300 text-center">
+              <div className="text-lg mb-2">⚠️</div>
+              <div>{error}</div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+        
+        {!loading && !error && cards.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="text-6xl mb-4">📚</div>
+            <div className="text-white text-xl font-semibold mb-2">Your library is empty</div>
+            <div className="text-blue-200 text-sm">Scan some cards to start building your collection!</div>
+          </div>
+        )}
+        
+        {!loading && !error && cards.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+            {cards.map(card => (
+              <div
+                key={card.id}
+                className="bg-white/15 backdrop-blur-md rounded-2xl p-4 flex flex-col items-center cursor-pointer hover:bg-white/25 transition-all duration-300 border border-white/20 hover:border-white/40 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                onClick={() => setSelectedCard(card)}
+              >
+                <div className="w-full aspect-[3/4] rounded-xl overflow-hidden mb-3 bg-white/10">
+                  <img 
+                    src={card.imageUrl} 
+                    alt={card.name} 
+                    className="w-full h-full object-contain p-2" 
+                  />
+                </div>
+                <div className="text-white font-semibold text-sm text-center leading-tight">
+                  {card.name}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
