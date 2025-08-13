@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import CameraCapture from '../components/CameraCapture';
 import CardDetails from '../components/CardDetails';
 import { CardData } from '../types/card';
 import { CardApiService } from '../services/cardApi';
-import { Camera, Upload, ArrowLeft } from 'lucide-react';
+import { Camera, Upload, ArrowLeft, User, LogOut } from 'lucide-react';
 import ReactCrop, { Crop as CropType, PixelCrop, PercentCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { resizeImage, getCroppedImg, validateImageFile, resetFileInput, handleCropCompleteUtil } from '../utils/imageUtils';
-import Library from './Library';
 
 const Index = () => {
   console.log('Index component rendering');
 
+  const { user, isAuthenticated, signOut } = useAuth();
+  const navigate = useNavigate();
+  
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,24 +26,25 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropImageRef = useRef<HTMLImageElement | null>(null);
   const [libraryIds, setLibraryIds] = useState<string[]>([]);
-  const [showLibrary, setShowLibrary] = useState(false);
 
   // Pokemon card aspect ratio is 5:7 (width:height)
   const CARD_ASPECT_RATIO = 5 / 7;
 
   useEffect(() => {
     console.log('Index component mounted');
-    // Fetch library on mount
-    const fetchLibrary = async () => {
-      try {
-        const data = await CardApiService.fetchLibrary();
-        if (data.success) {
-          setLibraryIds(data.card_ids || []);
-        }
-      } catch {}
-    };
-    fetchLibrary();
-  }, []);
+    // Fetch library on mount if authenticated
+    if (isAuthenticated) {
+      const fetchLibrary = async () => {
+        try {
+          const data = await CardApiService.fetchLibrary();
+          if (data.success) {
+            setLibraryIds(data.card_ids || []);
+          }
+        } catch {}
+      };
+      fetchLibrary();
+    }
+  }, [isAuthenticated]);
 
   const handleImageCapture = (imageDataUrl: string) => {
     setCapturedImage(imageDataUrl);
@@ -179,7 +184,7 @@ const Index = () => {
 
   const handleAddToLibrary = async () => {
     console.log('Add to Library button clicked');
-    if (!cardData) return;
+    if (!cardData || !isAuthenticated) return;
     try {
       const data = await CardApiService.addToLibrary(cardData.id);
       if (data.success) {
@@ -189,7 +194,7 @@ const Index = () => {
   };
 
   // Show main menu
-  if (currentMode === 'menu' && !capturedImage && !cardData && !showLibrary) {
+  if (currentMode === 'menu' && !capturedImage && !cardData) {
     return (
       <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
         {/* Header */}
@@ -203,6 +208,45 @@ const Index = () => {
           <p className="text-blue-100 text-sm font-medium">
             Scan your Pokémon cards instantly
           </p>
+          
+          {/* Authentication Status */}
+          <div className="mt-4 flex justify-center items-center gap-3">
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-2 rounded-full border border-white/30">
+                  <User className="w-4 h-4 text-white" />
+                  <span className="text-white text-sm font-medium">
+                    {user?.email}
+                  </span>
+                </div>
+                <button
+                  onClick={() => navigate('/library')}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+                >
+                  Library
+                </button>
+                <button
+                  onClick={signOut}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-blue-200 text-sm">
+                  Sign in to save cards to your library
+                </span>
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200"
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Content - Scrollable */}
@@ -232,17 +276,19 @@ const Index = () => {
               <p className="text-blue-100 text-sm">Select image from gallery</p>
             </button>
 
-            {/* Library */}
-            <button
-              onClick={() => setShowLibrary(true)}
-              className="w-full bg-white/15 backdrop-blur-md rounded-3xl p-6 text-center hover:bg-white/25 transition-all duration-300 border border-white/20 hover:border-white/40 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
-            >
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white text-2xl">📚</span>
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">View Library</h3>
-              <p className="text-blue-100 text-sm">Browse your saved cards</p>
-            </button>
+            {/* Library - Only show when authenticated */}
+            {isAuthenticated && (
+              <button
+                onClick={() => navigate('/library')}
+                className="w-full bg-white/15 backdrop-blur-md rounded-3xl p-6 text-center hover:bg-white/25 transition-all duration-300 border border-white/20 hover:border-white/40 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
+              >
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">📚</span>
+                </div>
+                <h3 className="text-white font-bold text-lg mb-2">View Library</h3>
+                <p className="text-blue-100 text-sm">Browse your saved cards</p>
+              </button>
+            )}
           </div>
         </div>
 
@@ -266,10 +312,7 @@ const Index = () => {
     );
   }
 
-  // Show library page
-  if (showLibrary) {
-    return <Library onBack={() => setShowLibrary(false)} />;
-  }
+
 
   // Show camera capture
   if (currentMode === 'camera') {
