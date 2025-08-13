@@ -1,16 +1,25 @@
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
 from PIL import Image
 from io import BytesIO
 import tempfile
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from image_similarity import embedding_image_similarity
 import pandas as pd
 from fastapi import APIRouter
 import sqlite3
 import json
 import threading
+
+# SuperTokens imports
+from supertokens_python import init, InputAppInfo
+from supertokens_python.recipe import emailpassword, session
+from supertokens_python.recipe.emailpassword.interfaces import APIInterface
+from supertokens_python.recipe.emailpassword.types import FormField
+from supertokens_python.recipe.session.framework.fastapi import verify_session
+from supertokens_python.recipe.session import SessionContainer
+from supertokens_python import SupertokensConfig
 
 #logging
 import logging
@@ -38,6 +47,30 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Initialize SuperTokens
+def init_supertokens():
+    """Initialize SuperTokens with email OTP configuration."""
+    connection_uri = os.getenv("SUPERTOKENS_CONNECTION_URI", "http://localhost:3567")
+    
+    init(
+        app_info=InputAppInfo(
+            app_name="Pokemon Card Scanner",
+            api_domain="localhost:8000",
+            website_domain="localhost:8080",
+            api_base_path="/auth",
+            website_base_path="/auth"
+        ),
+        supertokens_config=SupertokensConfig(connection_uri=connection_uri),
+        framework="fastapi",
+        recipe_list=[
+            emailpassword.init(),
+            session.init()
+        ]
+    )
+
+# Initialize SuperTokens at startup
+init_supertokens()
+
 api_router = APIRouter(prefix="/v1/api")
 
 def create_user_library_table():
@@ -56,6 +89,33 @@ def create_user_library_table():
 
 # Ensure table is created at startup (thread-safe)
 threading.Thread(target=create_user_library_table).start()
+
+# Authentication middleware functions
+async def get_user_from_session(request) -> Optional[Dict[str, Any]]:
+    """Extract user information from SuperTokens session."""
+    try:
+        session: SessionContainer = await verify_session(request)
+        if session is None:
+            return None
+        
+        user_id = session.get_user_id()
+        if not user_id:
+            return None
+        
+        return {"id": user_id}
+        
+    except Exception as e:
+        logger.warning(f"Session verification failed: {e}")
+        return None
+
+def require_auth(user: Optional[Dict[str, Any]] = Depends(get_user_from_session)) -> Dict[str, Any]:
+    """Dependency that requires authentication."""
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please sign in to access this resource."
+        )
+    return user
 
 def get_user_library(user_id: str) -> list:
     conn = sqlite3.connect('pokemon_cards.db')
