@@ -32,6 +32,7 @@
 - **Variable names should follow convention with self-explanatory names**
 - **We use `pyproject.toml` and `uv.lock`, NOT `requirements.txt`**
 - **Package manager is `uv`, not pip**
+- **CORS is handled at nginx level, NOT in FastAPI** - don't add CORS middleware to backend
 
 ### **SuperTokens Package Details:**
 - **Correct package**: `supertokens-python>=0.30.0`

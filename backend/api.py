@@ -34,7 +34,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Force Python to run unbuffered for Docker
+# Force Python to run unbuffered for Docker containers
 sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
@@ -365,6 +365,50 @@ async def health_check():
 # Include SuperTokens authentication endpoints
 from supertokens_python.framework.fastapi import get_middleware
 app.add_middleware(get_middleware())
+
+# Add basic auth endpoints to the auth router
+@auth_router.get("/session")
+async def get_session(request: Request):
+    """Get current session information."""
+    # For now, return a basic response to test connectivity
+    return {"status": "NOT_AUTHENTICATED", "message": "Session endpoint working"}
+
+@auth_router.get("/user/{user_id}")
+async def get_user(user_id: str, request: Request):
+    """Get user information by ID."""
+    # For now, return a basic response to test connectivity
+    return {"id": user_id, "email": "test@example.com", "message": "User endpoint working"}
+
+@auth_router.post("/signinup")
+async def signinup(request: Request):
+    """Handle sign in/up requests (OTP sending and verification)."""
+    try:
+        body = await request.json()
+        email = body.get("email")
+        user_input_code = body.get("userInputCode")
+        
+        if not email:
+            return {"status": "ERROR", "message": "Email is required"}
+        
+        # For now, simulate OTP functionality
+        if user_input_code:
+            # This is OTP verification
+            # In a real implementation, SuperTokens would verify the OTP
+            return {"status": "OK", "message": "OTP verified successfully"}
+        else:
+            # This is OTP sending
+            # In a real implementation, SuperTokens would send OTP
+            return {"status": "OK", "message": "OTP sent successfully"}
+            
+    except Exception as e:
+        logger.error(f"Signinup error: {e}")
+        return {"status": "ERROR", "message": str(e)}
+
+@auth_router.post("/signout")
+async def sign_out(request: Request):
+    """Sign out the current user."""
+    # For now, return a basic response to test connectivity
+    return {"status": "OK", "message": "Signout endpoint working"}
 
 # Include our API routes
 app.include_router(api_router)

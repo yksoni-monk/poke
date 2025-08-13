@@ -31,7 +31,7 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
 
     try {
       // Call backend SuperTokens endpoint to send OTP
-      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signinup`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
 
     try {
       // Call backend SuperTokens endpoint to verify OTP
-      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signinup`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
 
     try {
       // Call backend to resend OTP
-      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signinup`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

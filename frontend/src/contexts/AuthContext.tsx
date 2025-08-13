@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check if user is authenticated with backend
   const checkAuth = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/session`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/session`, {
         credentials: 'include', // Include cookies for session
       });
 
@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const sessionData = await response.json();
         if (sessionData.status === 'OK' && sessionData.userId) {
           // Get user details
-          const userResponse = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/user/${sessionData.userId}`, {
+          const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/user/${sessionData.userId}`, {
             credentials: 'include',
           });
           
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       // Call backend to sign out
-      await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signout`, {
+      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signout`, {
         method: 'POST',
         credentials: 'include',
       });
