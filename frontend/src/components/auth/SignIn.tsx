@@ -30,19 +30,25 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setError('');
 
     try {
-      // TODO: Integrate with SuperTokens backend
-      // For now, simulate OTP sending
-      console.log('Sending OTP to:', email);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In development, generate a fake OTP
-      const fakeOTP = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log('Development OTP:', fakeOTP);
-      
-      setOtpSent(true);
-      setError('');
+      // Call backend SuperTokens endpoint to send OTP
+      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signinup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+        }),
+      });
+
+      if (response.ok) {
+        setOtpSent(true);
+        setError('');
+        console.log('OTP sent to:', email);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to send OTP. Please try again.');
+      }
     } catch (err) {
       setError('An error occurred. Please try again.');
       console.error('Error sending OTP:', err);
@@ -62,17 +68,30 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setError('');
 
     try {
-      // TODO: Integrate with SuperTokens backend
-      // For now, simulate OTP verification
-      console.log('Verifying OTP:', otp);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Simulate success and sign in
-      await signIn(email);
-      setError('');
-      onSuccess?.();
+      // Call backend SuperTokens endpoint to verify OTP
+      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signinup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          userInputCode: otp,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'OK') {
+          setError('');
+          onSuccess?.();
+        } else {
+          setError('Invalid OTP. Please try again.');
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Invalid OTP. Please try again.');
+      }
     } catch (err) {
       setError('An error occurred. Please try again.');
       console.error('Error verifying OTP:', err);
@@ -86,17 +105,24 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setError('');
 
     try {
-      // TODO: Integrate with SuperTokens backend
-      console.log('Resending OTP to:', email);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Generate new fake OTP
-      const fakeOTP = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log('New Development OTP:', fakeOTP);
-      
-      setError('');
+      // Call backend to resend OTP
+      const response = await fetch(`${import.meta.env.VITE_API_DOMAIN || 'http://localhost:8000'}/auth/signinup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+        }),
+      });
+
+      if (response.ok) {
+        setError('');
+        console.log('OTP resent to:', email);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to resend OTP. Please try again.');
+      }
     } catch (err) {
       setError('An error occurred. Please try again.');
       console.error('Error resending OTP:', err);

@@ -85,6 +85,71 @@ The backend now has:
 - Authentication middleware ready for use
 - Protected route capabilities
 
+## **⚠️ CRITICAL TECHNICAL DETAILS - DON'T FORGET!**
+
+### **Dependency Management:**
+- **We use `pyproject.toml` and `uv.lock`, NOT `requirements.txt`**
+- **Package manager**: `uv` (not pip)
+- **Lock file**: `uv.lock` must be regenerated when dependencies change
+
+### **SuperTokens Package:**
+- **Correct package name**: `supertokens-python` (NOT `supertokens`)
+- **Version**: `>=0.30.0` (as specified in pyproject.toml)
+- **Import pattern**: `from supertokens_python import ...`
+- **Working recipe**: `emailpassword` (NOT `passwordless`)
+
+### **Working Import Structure:**
+```python
+# ✅ CORRECT - These work from Phase 1
+from supertokens_python import init, InputAppInfo
+from supertokens_python.recipe.emailpassword.interfaces import APIInterface
+from supertokens_python.recipe.emailpassword.types import FormField
+from supertokens_python.recipe.session import SessionContainer
+from supertokens_python.recipe.session.framework.fastapi import verify_session
+
+# ❌ WRONG - These cause errors
+from supertokens import init, InputAppInfo  # Wrong package name
+from supertokens_python.recipe.passwordless import ...  # Recipe doesn't work
+passwordless.init(contact_method="EMAIL")  # Arguments not supported
+```
+
+### **Why This Matters:**
+- **Import errors block backend startup**
+- **Wrong package names cause ModuleNotFoundError**
+- **Complex recipe configurations may not exist in installed version**
+- **Keep it simple and use what we know works**
+
+### **Remember for Future Phases:**
+1. **Always check `pyproject.toml` for actual dependencies**
+2. **Use `supertokens-python` package name**
+3. **Start with simple configurations that work**
+4. **Test imports before adding complex features**
+
+## **🚨 CRITICAL DEVELOPMENT RULES - LEARNED FROM EXPERIENCE:**
+
+### **Dependency & Configuration Rules:**
+- **ALWAYS check `pyproject.toml` for actual dependencies** - don't assume requirements.txt exists
+- **Use `uv` package manager** - not pip (we have `uv.lock` file)
+- **Verify package names exactly** - `supertokens-python` not `supertokens`
+
+### **SuperTokens Integration Rules:**
+- **Start with minimal configuration** - use `emailpassword.init()` without arguments first
+- **Don't guess at configuration** - read actual SuperTokens documentation
+- **Test incrementally** - ensure basic setup works before adding complexity
+- **Use proven working imports** - stick to what was tested in previous phases
+
+### **Code Quality Rules:**
+- **Read the actual documentation** - don't reverse-engineer from old code
+- **Start simple and add features gradually** - avoid complex configurations upfront
+- **Test each step** - make sure it works before moving to the next
+- **Document working configurations** - so we don't forget what actually works
+
+### **When Things Go Wrong:**
+- **Check actual error messages** - don't assume what the problem is
+- **Revert to known working state** - if possible, go back to what worked
+- **Simplify, don't complicate** - remove problematic code, don't add more
+- **Ask for help early** - don't keep guessing if documentation exists
+
 ## **Next Steps (Phase 2)**
 
 1. **Frontend Foundation**
