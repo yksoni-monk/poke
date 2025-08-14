@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  signIn: (email: string) => Promise<void>;
+  signIn: (email: string, userData?: any) => Promise<void>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -35,22 +35,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check if user is authenticated with backend
   const checkAuth = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/session`, {
+      console.log('🔐 checkAuth called, checking session...');
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/sessioninfo`, {
         credentials: 'include', // Include cookies for session
       });
 
+      console.log('🔐 Session response status:', response.status);
+      console.log('🔐 Session response ok:', response.ok);
+
       if (response.ok) {
         const sessionData = await response.json();
+        console.log('🔐 Session data:', sessionData);
+        
         if (sessionData.status === 'AUTHENTICATED' && sessionData.userId) {
+          console.log('🔐 User authenticated, setting user info...');
           // User is authenticated, set user info
           setUser({
             id: sessionData.userId,
             email: sessionData.accessTokenPayload?.email || 'unknown@email.com',
           });
+          console.log('🔐 User set to:', sessionData.userId);
         } else {
+          console.log('🔐 User not authenticated, clearing user...');
           setUser(null);
         }
       } else {
+        console.log('🔐 Session response not ok, clearing user...');
         setUser(null);
       }
     } catch (error) {
@@ -65,11 +76,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuth();
   }, []);
 
-  const signIn = async (email: string) => {
+  const signIn = async (email: string, userData?: any) => {
     setIsLoading(true);
     try {
-      // After OTP verification, check the session to get user info
-      await checkAuth();
+      if (userData) {
+        // If we have user data from OTP verification, use it directly
+        console.log('🔐 Using provided user data:', userData);
+        setUser({
+          id: userData.id || userData.userId || `user_${Date.now()}`,
+          email: email,
+        });
+        console.log('🔐 User set directly from OTP verification data');
+      } else {
+        // Check authentication using the working session endpoint
+        console.log('🔐 SignIn called, checking authentication...');
+        await checkAuth();
+        console.log('🔐 After checkAuth, user:', user, 'isAuthenticated:', !!user);
+      }
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;

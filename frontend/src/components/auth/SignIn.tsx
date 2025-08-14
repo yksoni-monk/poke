@@ -124,14 +124,25 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
         console.log('🔐 Verification response data:', data);
         
         if (data.status === 'OK') {
-          console.log('✅ OTP verification successful!');
-          
           // Clear stored session data
           localStorage.removeItem('supertokens_deviceId');
           localStorage.removeItem('supertokens_preAuthSessionId');
           
           setError('');
-          onSuccess?.();
+          
+          // Use the user data from the OTP verification response directly
+          // This bypasses the problematic session endpoint
+          console.log('✅ OTP verification successful! User data:', data.user);
+          
+          // Call signIn with the user data we already have
+          try {
+            await signIn(email, data.user);
+            console.log('✅ Authentication state updated, calling onSuccess...');
+            onSuccess?.();
+          } catch (error) {
+            console.error('❌ Error updating authentication state:', error);
+            setError('Authentication successful but failed to update state. Please refresh the page.');
+          }
         } else {
           console.error('❌ OTP verification failed:', data);
           setError('Invalid OTP. Please try again.');

@@ -415,10 +415,10 @@ from supertokens_python.recipe.session.interfaces import APIInterface as Session
 app.add_middleware(get_middleware())
 
 # Add custom session endpoint using SuperTokens verify_session dependency
-@app.get("/auth/session")
+@app.get("/sessioninfo")
 async def get_session_info(s: SessionContainer = Depends(verify_session())):
     """Get current session information using SuperTokens."""
-    logger.info("🚀 /auth/session endpoint called!")
+    logger.info("🚀 /sessioninfo endpoint called!")
     
     try:
         session_handle = s.get_handle()
