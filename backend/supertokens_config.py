@@ -5,16 +5,21 @@ This file configures SuperTokens with Passwordless email OTP authentication.
 """
 
 import os
+import sys
 from supertokens_python import init, InputAppInfo, SupertokensConfig
 from supertokens_python.recipe import passwordless, session
 from supertokens_python.recipe.passwordless import ContactEmailOnlyConfig
-from supertokens_python.recipe.session.framework.fastapi import verify_session
 
 def init_supertokens():
     """Initialize SuperTokens with Passwordless email OTP configuration."""
     
+    print("🔧 SuperTokens config: Starting initialization...", file=sys.stderr)
+    
     # Get configuration from environment variables
     connection_uri = os.getenv("SUPERTOKENS_CONNECTION_URI", "http://localhost:3567")
+    print(f"🔧 SuperTokens config: Connection URI: {connection_uri}", file=sys.stderr)
+    
+    print("🔧 SuperTokens config: About to call supertokens.init()...", file=sys.stderr)
     
     # Initialize SuperTokens
     init(
@@ -38,7 +43,5 @@ def init_supertokens():
         ],
         mode='asgi' # use wsgi if you are running using gunicorn
     )
-
-def get_session_verifier():
-    """Get the session verifier for protected routes."""
-    return verify_session
+    
+    print("🔧 SuperTokens config: Initialization complete!", file=sys.stderr)

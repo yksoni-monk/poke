@@ -1,3 +1,23 @@
+# Configure logging BEFORE importing anything else
+import logging
+import sys
+
+# Configure logging to work properly in Docker containers
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stderr)  # Use stderr instead of stdout
+    ],
+    force=True
+)
+logger = logging.getLogger(__name__)
+
+# Force Python to run unbuffered for Docker containers
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+# Now configure logging is done, import everything else
 from fastapi import FastAPI, UploadFile, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
 from PIL import Image
@@ -11,42 +31,58 @@ from fastapi import APIRouter
 import sqlite3
 import json
 import threading
+from contextlib import asynccontextmanager
 
 # SuperTokens imports
 from supertokens_python.recipe.session.framework.fastapi import verify_session
 from supertokens_python.recipe.session import SessionContainer
 
 # Import our SuperTokens configuration
-from supertokens_config import init_supertokens
+# from supertokens_config import init_supertokens  # Now called from lifespan
 
-#logging
-import logging
-import sys
+# Force output to stderr which Docker captures better
+print("🔍 DEBUG: This line should appear in logs!", file=sys.stderr)
+print("🔍 DEBUG: About to initialize SuperTokens...", file=sys.stderr)
 
-# Configure logging to work properly in Docker containers
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ],
-    force=True
-)
-logger = logging.getLogger(__name__)
+print("🔍 DEBUG: After logging configuration!", file=sys.stderr)
+logger.info("🔍 DEBUG: Logger configured successfully!")
+logger.error("🔍 DEBUG: This is an ERROR level message to test stderr capture!")
 
-# Force Python to run unbuffered for Docker containers
-sys.stdout.reconfigure(line_buffering=True)
-sys.stderr.reconfigure(line_buffering=True)
-
+@asynccontextmanager
+async def lifespan(app):
+    # Code to be executed before the application starts up
+    print("🚀 FastAPI startup event triggered!", file=sys.stderr)
+    print("🔍 This is a test message to verify startup event works!", file=sys.stderr)
+    
+    print("=== SUPERTOKENS STATUS ===", file=sys.stderr)
+    print("About to initialize SuperTokens...", file=sys.stderr)
+    
+    try:
+        # Initialize SuperTokens here in lifespan to ensure logging is set up
+        from supertokens_config import init_supertokens
+        print("🔧 Calling SuperTokens init function...", file=sys.stderr)
+        init_supertokens()
+        print("✅ SuperTokens initialized successfully!", file=sys.stderr)
+    except Exception as e:
+        print(f"❌ FAILED to initialize SuperTokens: {e}", file=sys.stderr)
+        print(f"Error type: {type(e)}", file=sys.stderr)
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
+        raise e
+    
+    yield
+    # Code to be executed after the application shuts down
+    print("🛑 FastAPI shutdown event triggered!", file=sys.stderr)
 
 app = FastAPI(
     title="Pokemon Card Scanner API",
     description="API for scanning and identifying Pokemon cards using image similarity",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# Initialize SuperTokens at startup using our config
-init_supertokens()
+# SuperTokens now initializes during import - no need for startup event
+# The import of supertokens_config above will trigger SuperTokens initialization
 
 api_router = APIRouter(prefix="/v1/api")
 auth_router = APIRouter(prefix="/auth")
@@ -362,57 +398,25 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
 
+# Remove manual auth endpoints - SuperTokens handles them automatically through middleware
+# The following endpoints are automatically created by SuperTokens:
+# - /auth/signinup (POST) - handles OTP sending and verification
+# - /auth/session (GET) - gets current session
+# - /auth/signout (POST) - signs out user
+
+# Note: We don't need to implement these manually - SuperTokens middleware handles them all
+
 # Include SuperTokens authentication endpoints
 from supertokens_python.framework.fastapi import get_middleware
+from supertokens_python.recipe.passwordless.interfaces import APIInterface
+from supertokens_python.recipe.session.interfaces import APIInterface as SessionAPIInterface
+
+# Add SuperTokens middleware to create auth endpoints automatically
 app.add_middleware(get_middleware())
-
-# Add basic auth endpoints to the auth router
-@auth_router.get("/session")
-async def get_session(request: Request):
-    """Get current session information."""
-    # For now, return a basic response to test connectivity
-    return {"status": "NOT_AUTHENTICATED", "message": "Session endpoint working"}
-
-@auth_router.get("/user/{user_id}")
-async def get_user(user_id: str, request: Request):
-    """Get user information by ID."""
-    # For now, return a basic response to test connectivity
-    return {"id": user_id, "email": "test@example.com", "message": "User endpoint working"}
-
-@auth_router.post("/signinup")
-async def signinup(request: Request):
-    """Handle sign in/up requests (OTP sending and verification)."""
-    try:
-        body = await request.json()
-        email = body.get("email")
-        user_input_code = body.get("userInputCode")
-        
-        if not email:
-            return {"status": "ERROR", "message": "Email is required"}
-        
-        # For now, simulate OTP functionality
-        if user_input_code:
-            # This is OTP verification
-            # In a real implementation, SuperTokens would verify the OTP
-            return {"status": "OK", "message": "OTP verified successfully"}
-        else:
-            # This is OTP sending
-            # In a real implementation, SuperTokens would send OTP
-            return {"status": "OK", "message": "OTP sent successfully"}
-            
-    except Exception as e:
-        logger.error(f"Signinup error: {e}")
-        return {"status": "ERROR", "message": str(e)}
-
-@auth_router.post("/signout")
-async def sign_out(request: Request):
-    """Sign out the current user."""
-    # For now, return a basic response to test connectivity
-    return {"status": "OK", "message": "Signout endpoint working"}
 
 # Include our API routes
 app.include_router(api_router)
-app.include_router(auth_router)
+# app.include_router(auth_router)  # Not needed - SuperTokens handles auth automatically
 
 if __name__ == "__main__":
     import uvicorn

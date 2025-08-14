@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: ./backend
-    command: python api.py
+    command: ["/app/.venv/bin/python", "-u", "api.py"]
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -11,6 +11,8 @@ services:
       - ./backend/pokemon_cards.db:/app/pokemon_cards.db
     environment:
       - SUPERTOKENS_CONNECTION_URI=http://supertokens:3567
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/api/health"]
       interval: 10s
