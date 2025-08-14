@@ -25,6 +25,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // For protected routes (requireAuth=true), check authentication
   if (requireAuth && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -33,13 +34,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (!requireAuth && isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <UserProfile />
-      </div>
-    );
+  // For public routes (requireAuth=false), always show children
+  // regardless of authentication status
+  if (!requireAuth) {
+    return <>{children}</>;
   }
 
+  // For protected routes, user is authenticated, show children
   return <>{children}</>;
 };
