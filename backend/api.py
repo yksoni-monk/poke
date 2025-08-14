@@ -414,6 +414,32 @@ from supertokens_python.recipe.session.interfaces import APIInterface as Session
 # Add SuperTokens middleware to create auth endpoints automatically
 app.add_middleware(get_middleware())
 
+# Add custom session endpoint using SuperTokens verify_session dependency
+@app.get("/auth/session")
+async def get_session_info(s: SessionContainer = Depends(verify_session())):
+    """Get current session information using SuperTokens."""
+    logger.info("🚀 /auth/session endpoint called!")
+    
+    try:
+        session_handle = s.get_handle()
+        user_id = s.get_user_id()
+        access_token_payload = s.get_access_token_payload()
+        
+        logger.info(f"✅ Session verified successfully! User ID: {user_id}")
+        
+        return {
+            "status": "AUTHENTICATED",
+            "sessionHandle": session_handle,
+            "userId": user_id,
+            "accessTokenPayload": access_token_payload
+        }
+    except Exception as e:
+        logger.error(f"❌ Session verification error: {e}")
+        logger.error(f"Error type: {type(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return {"status": "NOT_AUTHENTICATED", "message": "Session verification failed"}
+
 # Include our API routes
 app.include_router(api_router)
 # app.include_router(auth_router)  # Not needed - SuperTokens handles auth automatically
