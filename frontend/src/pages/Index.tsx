@@ -220,12 +220,6 @@ const Index = () => {
                   </span>
                 </div>
                 <button
-                  onClick={() => navigate('/library')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200"
-                >
-                  Library
-                </button>
-                <button
                   onClick={signOut}
                   className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-full text-sm font-medium transition-colors duration-200"
                   title="Sign Out"
