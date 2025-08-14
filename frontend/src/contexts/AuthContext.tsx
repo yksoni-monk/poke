@@ -41,19 +41,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok) {
         const sessionData = await response.json();
-        if (sessionData.status === 'OK' && sessionData.userId) {
-          // Get user details
-          const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/user/${sessionData.userId}`, {
-            credentials: 'include',
+        if (sessionData.status === 'AUTHENTICATED' && sessionData.userId) {
+          // User is authenticated, set user info
+          setUser({
+            id: sessionData.userId,
+            email: sessionData.accessTokenPayload?.email || 'unknown@email.com',
           });
-          
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            setUser({
-              id: userData.id,
-              email: userData.email,
-            });
-          }
         } else {
           setUser(null);
         }
@@ -75,14 +68,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string) => {
     setIsLoading(true);
     try {
-      // User is already signed in after OTP verification
-      // Just update the local state
-      const mockUser = {
-        id: `user_${Date.now()}`,
-        email: email,
-      };
-      
-      setUser(mockUser);
+      // After OTP verification, check the session to get user info
+      await checkAuth();
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;
@@ -93,15 +80,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     try {
-      // Call backend to sign out
-      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      
+      // Clear local user state
       setUser(null);
+      
+      // Note: SuperTokens handles session cleanup automatically
+      // We don't need to call a specific signout endpoint
+      
+      console.log('User signed out successfully');
     } catch (error) {
       console.error('Error signing out:', error);
+      // Even if there's an error, clear the local state
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 

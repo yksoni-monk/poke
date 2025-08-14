@@ -30,8 +30,10 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setError('');
 
     try {
+      console.log('🔐 Sending OTP to:', email);
+      
       // Call backend SuperTokens endpoint to send OTP
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup/code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,17 +43,35 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
         }),
       });
 
+      console.log('🔐 Response status:', response.status);
+      console.log('🔐 Response ok:', response.ok);
+
       if (response.ok) {
-        setOtpSent(true);
-        setError('');
-        console.log('OTP sent to:', email);
+        const data = await response.json();
+        console.log('🔐 Response data:', data);
+        
+        if (data.status === 'OK') {
+          setOtpSent(true);
+          setError('');
+          console.log('✅ OTP sent successfully to:', email);
+          console.log('🔐 Device ID:', data.deviceId);
+          console.log('🔐 PreAuth Session ID:', data.preAuthSessionId);
+          
+          // Store deviceId and preAuthSessionId for OTP verification
+          localStorage.setItem('supertokens_deviceId', data.deviceId);
+          localStorage.setItem('supertokens_preAuthSessionId', data.preAuthSessionId);
+        } else {
+          console.error('❌ OTP sending failed:', data);
+          setError(data.message || 'Failed to send OTP. Please try again.');
+        }
       } else {
         const errorData = await response.json();
+        console.error('❌ HTTP error:', errorData);
         setError(errorData.message || 'Failed to send OTP. Please try again.');
       }
     } catch (err) {
+      console.error('❌ Exception during OTP sending:', err);
       setError('An error occurred. Please try again.');
-      console.error('Error sending OTP:', err);
     } finally {
       setIsLoading(false);
     }
@@ -68,33 +88,62 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setError('');
 
     try {
+      console.log('🔐 Verifying OTP:', otp);
+      
+      // Get stored deviceId and preAuthSessionId
+      const deviceId = localStorage.getItem('supertokens_deviceId');
+      const preAuthSessionId = localStorage.getItem('supertokens_preAuthSessionId');
+
+      console.log('🔐 Device ID from storage:', deviceId);
+      console.log('🔐 PreAuth Session ID from storage:', preAuthSessionId);
+
+      if (!deviceId || !preAuthSessionId) {
+        console.error('❌ Missing session data');
+        setError('OTP session expired. Please request a new OTP.');
+        return;
+      }
+
       // Call backend SuperTokens endpoint to verify OTP
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup/code/consume`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email,
+          deviceId: deviceId,
+          preAuthSessionId: preAuthSessionId,
           userInputCode: otp,
         }),
       });
 
+      console.log('🔐 Verification response status:', response.status);
+      console.log('🔐 Verification response ok:', response.ok);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('🔐 Verification response data:', data);
+        
         if (data.status === 'OK') {
+          console.log('✅ OTP verification successful!');
+          
+          // Clear stored session data
+          localStorage.removeItem('supertokens_deviceId');
+          localStorage.removeItem('supertokens_preAuthSessionId');
+          
           setError('');
           onSuccess?.();
         } else {
+          console.error('❌ OTP verification failed:', data);
           setError('Invalid OTP. Please try again.');
         }
       } else {
         const errorData = await response.json();
+        console.error('❌ HTTP error during verification:', errorData);
         setError(errorData.message || 'Invalid OTP. Please try again.');
       }
     } catch (err) {
+      console.error('❌ Exception during OTP verification:', err);
       setError('An error occurred. Please try again.');
-      console.error('Error verifying OTP:', err);
     } finally {
       setIsLoading(false);
     }
