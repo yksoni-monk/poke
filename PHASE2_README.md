@@ -50,7 +50,7 @@ cd frontend
 cp env.example .env
 
 # Edit .env and set your configuration
-VITE_API_DOMAIN=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000
 VITE_SUPERTOKENS_DOMAIN=http://localhost:3567
 ```
 
