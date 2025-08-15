@@ -20,13 +20,14 @@ def init_supertokens():
     print(f"🔧 SuperTokens config: Connection URI: {connection_uri}", file=sys.stderr)
     
     print("🔧 SuperTokens config: About to call supertokens.init()...", file=sys.stderr)
-    
+    api_domain = os.getenv("API_DOMAIN", "localhost")
+    website_domain = os.getenv("CORS_ORIGIN", "localhost:8080")
     # Initialize SuperTokens
     init(
         app_info=InputAppInfo(
             app_name="Pokemon Card Scanner",
-            api_domain="localhost:8000",
-            website_domain="localhost:8080",
+            api_domain=api_domain,
+            website_domain=website_domain,
             api_base_path="/auth",
             website_base_path="/auth"
         ),
