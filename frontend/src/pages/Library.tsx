@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CardData } from '../types/card';
-import { CardApiService } from '../services/cardApi';
-import CardDetails from '../components/CardDetails';
+import { CardApiService, useCardApi } from '../services/cardApi';
+
 import LibraryCardDetails from '../components/LibraryCardDetails';
 
 interface LibraryProps {
@@ -9,6 +9,7 @@ interface LibraryProps {
 }
 
 const Library: React.FC<LibraryProps> = ({ onBack }) => {
+  const { fetchLibrary } = useCardApi();
   const [cardIds, setCardIds] = useState<string[]>([]);
   const [cards, setCards] = useState<CardData[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
@@ -16,11 +17,11 @@ const Library: React.FC<LibraryProps> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchLibrary = async () => {
+    const loadLibrary = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await CardApiService.fetchLibrary();
+        const data = await fetchLibrary();
         console.log('Library fetch result:', data);
         if (data.success) {
           console.log('Card IDs in library:', data.card_ids);
@@ -34,8 +35,8 @@ const Library: React.FC<LibraryProps> = ({ onBack }) => {
         setLoading(false);
       }
     };
-    fetchLibrary();
-  }, []);
+    loadLibrary();
+  }, []); // Empty dependency array - only run once on mount
 
   useEffect(() => {
     const fetchCards = async () => {

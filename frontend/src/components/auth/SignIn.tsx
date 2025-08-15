@@ -6,6 +6,7 @@ import { Label } from '../ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Loader2, Mail, Shield } from 'lucide-react';
+import { createCode, consumeCode, clearLoginAttemptInfo } from "supertokens-web-js/recipe/passwordless";
 
 interface SignInProps {
   onSuccess?: () => void;
@@ -32,46 +33,35 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     try {
       console.log('🔐 Sending OTP to:', email);
       
-      // Call backend SuperTokens endpoint to send OTP
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup/code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
+      // Use SuperTokens SDK function instead of manual API call
+      const response = await createCode({ email });
 
-      console.log('🔐 Response status:', response.status);
-      console.log('🔐 Response ok:', response.ok);
+      console.log('🔐 Response:', response);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔐 Response data:', data);
+      if (response.status === 'OK') {
+        setOtpSent(true);
+        setError('');
+        console.log('✅ OTP sent successfully to:', email);
+        console.log('🔐 Device ID:', response.deviceId);
+        console.log('🔐 PreAuth Session ID:', response.preAuthSessionId);
         
-        if (data.status === 'OK') {
-          setOtpSent(true);
-          setError('');
-          console.log('✅ OTP sent successfully to:', email);
-          console.log('🔐 Device ID:', data.deviceId);
-          console.log('🔐 PreAuth Session ID:', data.preAuthSessionId);
-          
-          // Store deviceId and preAuthSessionId for OTP verification
-          localStorage.setItem('supertokens_deviceId', data.deviceId);
-          localStorage.setItem('supertokens_preAuthSessionId', data.preAuthSessionId);
-        } else {
-          console.error('❌ OTP sending failed:', data);
-          setError(data.message || 'Failed to send OTP. Please try again.');
-        }
+        // Store deviceId and preAuthSessionId for OTP verification
+        localStorage.setItem('supertokens_deviceId', response.deviceId);
+        localStorage.setItem('supertokens_preAuthSessionId', response.preAuthSessionId);
+      } else if (response.status === "SIGN_IN_UP_NOT_ALLOWED") {
+        console.error('❌ Sign in/up not allowed:', response.reason);
+        setError(response.reason || 'Sign in/up not allowed. Please try again.');
       } else {
-        const errorData = await response.json();
-        console.error('❌ HTTP error:', errorData);
-        setError(errorData.message || 'Failed to send OTP. Please try again.');
+        console.error('❌ OTP sending failed:', response);
+        setError('Failed to send OTP. Please try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Exception during OTP sending:', err);
-      setError('An error occurred. Please try again.');
+      if (err.isSuperTokensGeneralError === true) {
+        setError(err.message);
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -90,71 +80,53 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     try {
       console.log('🔐 Verifying OTP:', otp);
       
-      // Get stored deviceId and preAuthSessionId
-      const deviceId = localStorage.getItem('supertokens_deviceId');
-      const preAuthSessionId = localStorage.getItem('supertokens_preAuthSessionId');
-
-      console.log('🔐 Device ID from storage:', deviceId);
-      console.log('🔐 PreAuth Session ID from storage:', preAuthSessionId);
-
-      if (!deviceId || !preAuthSessionId) {
-        console.error('❌ Missing session data');
-        setError('OTP session expired. Please request a new OTP.');
-        return;
-      }
-
-      // Call backend SuperTokens endpoint to verify OTP
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup/code/consume`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          deviceId: deviceId,
-          preAuthSessionId: preAuthSessionId,
-          userInputCode: otp,
-        }),
+      // Use SuperTokens SDK function instead of manual API call
+      const response = await consumeCode({
+        userInputCode: otp
       });
 
-      console.log('🔐 Verification response status:', response.status);
-      console.log('🔐 Verification response ok:', response.ok);
+      console.log('🔐 Verification response:', response);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔐 Verification response data:', data);
+      if (response.status === "OK") {
+        // Clear stored session data
+        localStorage.removeItem('supertokens_deviceId');
+        localStorage.removeItem('supertokens_preAuthSessionId');
         
-        if (data.status === 'OK') {
-          // Clear stored session data
-          localStorage.removeItem('supertokens_deviceId');
-          localStorage.removeItem('supertokens_preAuthSessionId');
-          
-          setError('');
-          
-          // Use the user data from the OTP verification response directly
-          // This bypasses the problematic session endpoint
-          console.log('✅ OTP verification successful! User data:', data.user);
-          
-          // Call signIn with the user data we already have
-          try {
-            await signIn(email, data.user);
-            console.log('✅ Authentication state updated, calling onSuccess...');
-            onSuccess?.();
-          } catch (error) {
-            console.error('❌ Error updating authentication state:', error);
-            setError('Authentication successful but failed to update state. Please refresh the page.');
-          }
+        // Clear login attempt info
+        await clearLoginAttemptInfo();
+        
+        setError('');
+        
+        if (response.createdNewRecipeUser && response.user.loginMethods.length === 1) {
+          console.log('✅ User sign up successful');
         } else {
-          console.error('❌ OTP verification failed:', data);
-          setError('Invalid OTP. Please try again.');
+          console.log('✅ User sign in successful');
         }
+        
+        // Call signIn with the user data from SuperTokens
+        try {
+          await signIn(email, response.user);
+          console.log('✅ Authentication state updated, calling onSuccess...');
+          onSuccess?.();
+        } catch (error) {
+          console.error('❌ Error updating authentication state:', error);
+          setError('Authentication successful but failed to update state. Please refresh the page.');
+        }
+      } else if (response.status === "INCORRECT_USER_INPUT_CODE_ERROR") {
+        setError('Wrong OTP! Please try again.');
+      } else if (response.status === "EXPIRED_USER_INPUT_CODE_ERROR") {
+        setError('Old OTP entered. Please regenerate a new one and try again');
       } else {
-        const errorData = await response.json();
-        console.error('❌ HTTP error during verification:', errorData);
-        setError(errorData.message || 'Invalid OTP. Please try again.');
+        await clearLoginAttemptInfo();
+        setError('Login failed. Please try again');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Exception during OTP verification:', err);
-      setError('An error occurred. Please try again.');
+      if (err.isSuperTokensGeneralError === true) {
+        setError(err.message);
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -165,8 +137,10 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
     setError('');
 
     try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost';
+      
       // Call backend to resend OTP
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/auth/signinup`, {
+      const response = await fetch(`${apiBaseUrl}/auth/signinup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

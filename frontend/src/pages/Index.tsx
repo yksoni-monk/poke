@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import CameraCapture from '../components/CameraCapture';
 import CardDetails from '../components/CardDetails';
 import { CardData } from '../types/card';
-import { CardApiService } from '../services/cardApi';
+import { CardApiService, useCardApi } from '../services/cardApi';
 import { Camera, Upload, ArrowLeft, User, LogOut } from 'lucide-react';
 import ReactCrop, { Crop as CropType, PixelCrop, PercentCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -15,6 +15,7 @@ const Index = () => {
 
   const { user, isAuthenticated, signOut } = useAuth();
   const navigate = useNavigate();
+  const { fetchLibrary } = useCardApi();
   
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cardData, setCardData] = useState<CardData | null>(null);
@@ -34,15 +35,15 @@ const Index = () => {
     console.log('Index component mounted');
     // Fetch library on mount if authenticated
     if (isAuthenticated) {
-      const fetchLibrary = async () => {
+      const loadLibrary = async () => {
         try {
-          const data = await CardApiService.fetchLibrary();
+          const data = await fetchLibrary();
           if (data.success) {
             setLibraryIds(data.card_ids || []);
           }
         } catch {}
       };
-      fetchLibrary();
+      loadLibrary();
     }
   }, [isAuthenticated]);
 
