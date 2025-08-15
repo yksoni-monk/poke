@@ -51,14 +51,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (sessionContext.userId) {
         console.log('🔐 SuperTokens session exists!');
         const userId = sessionContext.userId;
-        const accessTokenPayload = sessionContext.accessTokenPayload;
         
-        console.log('🔐 User authenticated, setting user info...');
+        // Get email from localStorage (stored during OTP verification)
+        const storedEmail = localStorage.getItem('supertokens_user_email');
+        const userEmail = storedEmail || 'default@poke.heymonk.app';
+        
         setUser({
           id: userId,
-          email: accessTokenPayload?.email || 'unknown@email.com',
+          email: userEmail,
         });
-        console.log('🔐 User set to:', userId);
+        console.log('🔐 User set to:', userId, 'with email:', userEmail);
       } else {
         console.log('🔐 No SuperTokens session, clearing user...');
         setUser(null);
@@ -107,6 +109,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Use SuperTokens SDK to sign out
       await superTokensSignOut();
+      
+      // Clear stored user data
+      localStorage.removeItem('supertokens_user_email');
       
       // Clear local user state
       setUser(null);

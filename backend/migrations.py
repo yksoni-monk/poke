@@ -107,7 +107,7 @@ def modify_user_library_table(cursor: sqlite3.Cursor) -> None:
 def create_default_user(cursor: sqlite3.Cursor) -> str:
     """Create a default user for existing data migration."""
     default_user_id = "default_user_001"
-    default_email = "default@pokemon.com"
+    default_email = "default@poke.heymonk.app"
     
     try:
         cursor.execute(

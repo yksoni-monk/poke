@@ -480,7 +480,7 @@ except Exception as e:
     print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
 
 # Add custom session endpoint using SuperTokens verify_session dependency
-@app.get("/sessioninfo")
+@api_router.get("/sessioninfo")
 async def get_session_info(s: SessionContainer = Depends(verify_session())):
     """Get current session information using SuperTokens."""
     logger.info("🚀 /sessioninfo endpoint called!")

@@ -92,6 +92,9 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
         localStorage.removeItem('supertokens_deviceId');
         localStorage.removeItem('supertokens_preAuthSessionId');
         
+        // Store user email for session restoration
+        localStorage.setItem('supertokens_user_email', email);
+        
         // Clear login attempt info
         await clearLoginAttemptInfo();
         
