@@ -78,19 +78,25 @@ async def get_session_info(s: SessionContainer = Depends(verify_session())):
 - **Use `verify_session()` dependency** for session verification
 - **Middleware handles** all the complex authentication logic
 
-### **2. Endpoint Structure**
+### **2. Nginx Configuration is Critical**
+- **CORS must be handled at nginx level** - not in FastAPI
+- **Proper header forwarding** for SuperTokens session cookies
+- **Environment variable substitution** for flexible configuration
+- **Preflight request handling** for OPTIONS requests
+
+### **3. Endpoint Structure**
 - **Correct paths**: `/auth/signinup/code` (not `/auth/signinup`)
 - **OTP verification**: `/auth/signinup/code/consume`
 - **Session checking**: `/auth/session` (custom endpoint)
 - **SuperTokens handles** the complex auth flow automatically
 
-### **3. Frontend Integration**
+### **4. Frontend Integration**
 - **Store session data** (deviceId, preAuthSessionId) in localStorage
 - **Handle OTP flow state** properly with React state management
 - **Clear session data** after successful authentication
 - **Use proper error handling** for all async operations
 
-### **4. Email Service**
+### **5. Email Service**
 - **SuperTokens default service** works out of the box
 - **No SMTP configuration** needed for development
 - **Real OTP delivery** to user emails
@@ -125,6 +131,38 @@ async def get_session_info(s: SessionContainer = Depends(verify_session())):
 - **Email service integration** ✅
 - **Frontend authentication flow** ✅
 - **End-to-end testing** ✅
+
+---
+
+## **Final Resolution - Nginx Configuration**
+
+### **The Issue**
+The authentication was failing due to nginx configuration problems:
+- **CORS headers not properly set** for authentication endpoints
+- **Session headers not forwarded** (Authorization, anti-csrf, cookies)
+- **Environment variable substitution** not working correctly
+
+### **The Solution**
+Updated nginx configuration with:
+- **Proper CORS headers** for all authentication endpoints
+- **Header forwarding** for SuperTokens session management
+- **Environment variable substitution** for flexible configuration
+- **Preflight request handling** for OPTIONS requests
+
+### **Key nginx Config Changes**
+```nginx
+# Critical: Forward SuperTokens session headers
+proxy_pass_header Authorization;
+proxy_pass_header anti-csrf;
+proxy_set_header Cookie $http_cookie;
+
+# CORS headers for authentication (allow credentials)
+add_header 'Access-Control-Allow-Origin' '$cors_origin' always;
+add_header 'Access-Control-Allow-Credentials' 'true' always;
+add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,anti-csrf,fdi-version,st-auth-mode,rid' always;
+```
+
+**Result**: Authentication now works end-to-end with proper session management and CORS handling.
 
 ---
 
