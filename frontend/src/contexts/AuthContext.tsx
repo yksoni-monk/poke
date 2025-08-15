@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useSessionContext } from "supertokens-auth-react/recipe/session";
+import { signOut as superTokensSignOut } from "supertokens-auth-react/recipe/session";
 
 interface User {
   id: string;
@@ -31,37 +33,34 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Use SuperTokens session context
+  const sessionContext = useSessionContext();
 
-  // Check if user is authenticated with backend
+  // Check if user is authenticated using SuperTokens SDK
   const checkAuth = async () => {
     try {
-      console.log('🔐 checkAuth called, checking session...');
+      console.log('🔐 checkAuth called, checking SuperTokens session...');
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost'}/sessioninfo`, {
-        credentials: 'include', // Include cookies for session
-      });
-
-      console.log('🔐 Session response status:', response.status);
-      console.log('🔐 Session response ok:', response.ok);
-
-      if (response.ok) {
-        const sessionData = await response.json();
-        console.log('🔐 Session data:', sessionData);
+      if (sessionContext.loading) {
+        console.log('🔐 Session context still loading...');
+        return;
+      }
+      
+      // Check if session exists and get user info
+      if (sessionContext.userId) {
+        console.log('🔐 SuperTokens session exists!');
+        const userId = sessionContext.userId;
+        const accessTokenPayload = sessionContext.accessTokenPayload;
         
-        if (sessionData.status === 'AUTHENTICATED' && sessionData.userId) {
-          console.log('🔐 User authenticated, setting user info...');
-          // User is authenticated, set user info
-          setUser({
-            id: sessionData.userId,
-            email: sessionData.accessTokenPayload?.email || 'unknown@email.com',
-          });
-          console.log('🔐 User set to:', sessionData.userId);
-        } else {
-          console.log('🔐 User not authenticated, clearing user...');
-          setUser(null);
-        }
+        console.log('🔐 User authenticated, setting user info...');
+        setUser({
+          id: userId,
+          email: accessTokenPayload?.email || 'unknown@email.com',
+        });
+        console.log('🔐 User set to:', userId);
       } else {
-        console.log('🔐 Session response not ok, clearing user...');
+        console.log('🔐 No SuperTokens session, clearing user...');
         setUser(null);
       }
     } catch (error) {
@@ -72,9 +71,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Check auth when session context changes
   useEffect(() => {
-    checkAuth();
-  }, []);
+    if (!sessionContext.loading) {
+      checkAuth();
+    }
+  }, [sessionContext.loading]);
 
   const signIn = async (email: string, userData?: any) => {
     setIsLoading(true);
@@ -88,8 +90,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
         console.log('🔐 User set directly from OTP verification data');
       } else {
-        // Check authentication using the working session endpoint
-        console.log('🔐 SignIn called, checking authentication...');
+        // Check authentication using SuperTokens session
+        console.log('🔐 SignIn called, checking SuperTokens session...');
         await checkAuth();
         console.log('🔐 After checkAuth, user:', user, 'isAuthenticated:', !!user);
       }
@@ -103,13 +105,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     try {
+      // Use SuperTokens SDK to sign out
+      await superTokensSignOut();
+      
       // Clear local user state
       setUser(null);
       
-      // Note: SuperTokens handles session cleanup automatically
-      // We don't need to call a specific signout endpoint
-      
-      console.log('User signed out successfully');
+      console.log('User signed out successfully via SuperTokens');
     } catch (error) {
       console.error('Error signing out:', error);
       // Even if there's an error, clear the local state
