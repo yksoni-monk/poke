@@ -7,7 +7,7 @@ import Session from "supertokens-auth-react/recipe/session";
 export const SuperTokensConfig = {
   appInfo: {
     appName: "Pokemon Scanner",
-    apiDomain: import.meta.env.VITE_API_DOMAIN || "http://localhost",
+    apiDomain: import.meta.env.VITE_API_BASE_URL || "http://localhost",
     websiteDomain: window.location.origin,
     apiBasePath: "/auth",
     websiteBasePath: "/auth",
