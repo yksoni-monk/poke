@@ -1,4 +1,22 @@
 import { CardData, ScanResult } from '../types/card';
+import { useSessionContext } from "supertokens-auth-react/recipe/session";
+
+// Hook-based API service that uses sessionContext
+export const useCardApi = () => {
+  const sessionContext = useSessionContext();
+
+  const fetchLibrary = async (): Promise<{ success: boolean; card_ids: string[] }> => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/v1/api/library`, {
+      credentials: 'include', // Include cookies for session authentication
+    });
+    return response.json();
+  };
+
+  return {
+    fetchLibrary,
+  };
+};
 
 export class CardApiService {
   static async scanCard(imageBlob: Blob): Promise<ScanResult> {
@@ -50,5 +68,21 @@ export class CardApiService {
       u8arr[n] = bstr.charCodeAt(n);
     }
     return new Blob([u8arr], { type: mime });
+  }
+
+  static async addToLibrary(cardId: string): Promise<{ success: boolean; added?: boolean }> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/v1/api/library/add?card_id=${encodeURIComponent(cardId)}`, {
+      method: 'POST',
+    });
+    return response.json();
+  }
+
+  static async getCardById(cardId: string): Promise<CardData | null> {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/v1/api/card/${encodeURIComponent(cardId)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data && data.name ? data : null;
   }
 }

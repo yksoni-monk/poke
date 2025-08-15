@@ -2,15 +2,70 @@ services:
   backend:
     build:
       context: ./backend
-    command: python api.py
+    command: ["/app/.venv/bin/python", "-u", "api.py"]
     ports:
       - "8000:8000"
     restart: unless-stopped
     volumes:
       - ./backend/embedding_cache:/app/embedding_cache
       - ./backend/pokemon_cards.db:/app/pokemon_cards.db
+    environment:
+      - SUPERTOKENS_CONNECTION_URI=http://supertokens:3567
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      supertokens:
+        condition: service_healthy
+    networks:
+      - poke-network
+
+
+
+  auth_db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: supertokens_user
+      POSTGRES_PASSWORD: somePassword
+      POSTGRES_DB: supertokens
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    networks:
+      - poke-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supertokens_user -d supertokens && psql -U supertokens_user -d supertokens -c 'SELECT 1;'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  supertokens:
+    image: supertokens/supertokens-postgresql:latest
+    depends_on:
+      auth_db:
+        condition: service_healthy
+    ports:
+      - "3567:3567"
+    restart: unless-stopped
+
+    environment:
+      POSTGRESQL_HOST: "auth_db"
+      POSTGRESQL_PORT: "5432"
+      POSTGRESQL_USER: "supertokens_user"
+      POSTGRESQL_PASSWORD: "somePassword"
+      POSTGRESQL_DATABASE: "supertokens"
+    volumes:
+      - supertokens_data:/var/lib/supertokens
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,6 +104,10 @@ services:
       - poke-network
 
 
+
+volumes:
+  supertokens_data:
+  auth_db_data:
 
 networks:
   poke-network:

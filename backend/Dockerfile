@@ -25,9 +25,11 @@ COPY . .
 # Set environment variables for Python
 #ENV VIRTUAL_ENV=/app/.poke
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # Expose port
 EXPOSE 8000
 
 # Run the FastAPI app
-CMD ["/app/.venv/bin/python", "api.py"] 
+CMD ["/app/.venv/bin/python", "-u", "api.py"] 

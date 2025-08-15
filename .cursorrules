@@ -1,0 +1,41 @@
+# Cursor Rules for Pokemon Scanner Project
+
+## **CRITICAL DEVELOPMENT RULES - LEARNED FROM EXPERIENCE:**
+
+### **Dependency & Configuration Rules:**
+- **ALWAYS check `pyproject.toml` for actual dependencies** - don't assume requirements.txt exists
+- **Use `uv` package manager** - not pip (we have `uv.lock` file)
+- **Verify package names exactly** - `supertokens-python` not `supertokens`
+
+### **SuperTokens Integration Rules:**
+- **Start with minimal configuration** - use `emailpassword.init()` without arguments first
+- **Don't guess at configuration** - read actual SuperTokens documentation
+- **Test incrementally** - ensure basic setup works before adding complexity
+- **Use proven working imports** - stick to what was tested in previous phases
+
+### **Code Quality Rules:**
+- **Read the actual documentation** - don't reverse-engineer from old code
+- **Start simple and add features gradually** - avoid complex configurations upfront
+- **Test each step** - make sure it works before moving to the next
+- **Document working configurations** - so we don't forget what actually works
+- **READ DOCS FIRST when using any SDK** - if docs not found, ask user for a docs link
+
+### **When Things Go Wrong:**
+- **Check actual error messages** - don't assume what the problem is
+- **Revert to known working state** - if possible, go back to what worked
+- **Simplify, don't complicate** - remove problematic code, don't add more
+- **Ask for help early** - don't keep guessing if documentation exists
+
+### **Project-Specific Rules:**
+- **Never modify files inside `solid_frontend/src/api` folder** - those are generated files
+- **Always use clean code with good architectures and enough comments**
+- **Variable names should follow convention with self-explanatory names**
+- **We use `pyproject.toml` and `uv.lock`, NOT `requirements.txt`**
+- **Package manager is `uv`, not pip**
+- **CORS is handled at nginx level, NOT in FastAPI** - don't add CORS middleware to backend
+
+### **SuperTokens Package Details:**
+- **Correct package**: `supertokens-python>=0.30.0`
+- **Working recipe**: `emailpassword` (NOT `passwordless`)
+- **Import pattern**: `from supertokens_python import ...`
+- **Start minimal**: `emailpassword.init()` and `session.init()` without arguments
