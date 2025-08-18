@@ -362,6 +362,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
                 style={{
                   width: `${FOCUS_AREA_WIDTH * 100}%`,
                   height: `${FOCUS_AREA_HEIGHT * 100}%`,
+                  transform: 'translate(-50%, -60%)',
                 }}
               >
                 <div className="w-full h-full border-2 border-green-500 rounded-lg">
