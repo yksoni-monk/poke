@@ -48,7 +48,7 @@ const Index = () => {
   }, [isAuthenticated]);
 
   const handleImageCapture = (imageDataUrl: string) => {
-    setCapturedImage(imageDataUrl);
+    // Image captured
     setCurrentMode('menu');
   };
 
@@ -116,7 +116,7 @@ const Index = () => {
       uploadedImage,
       completedCrop,
       (croppedImageUrl) => {
-        setCapturedImage(croppedImageUrl);
+        // Cropped image ready
         setUploadedImage(null);
         setCurrentMode('menu');
         setCrop(undefined);
@@ -144,7 +144,7 @@ const Index = () => {
 
   const handleBackToMenu = () => {
     setCurrentMode('menu');
-    setCapturedImage(null);
+
     setCardData(null);
     setUploadedImage(null);
     setCrop(undefined);
@@ -163,7 +163,7 @@ const Index = () => {
   };
 
   // Show main menu
-  if (currentMode === 'menu' && !capturedImage && !cardData) {
+  if (currentMode === 'menu' && !cardData) {
     return (
       <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
         {/* Header */}
@@ -353,8 +353,8 @@ const Index = () => {
           <div className="w-full max-w-md h-full flex flex-col min-h-0 overflow-hidden">
             <CardDetails 
               cardData={cardData} 
-              capturedImage={capturedImage}
-              onNewScan={handleNewScan}
+              capturedImage={null}
+              onNewScan={() => setCurrentMode('menu')}
               inLibrary={inLibrary}
               onAddToLibrary={handleAddToLibrary}
             />
