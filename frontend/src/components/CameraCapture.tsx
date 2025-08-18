@@ -310,7 +310,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   return (
     <div className="h-full w-full bg-black rounded-lg overflow-hidden relative">
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-full h-full max-w-[min(100%,calc(100vh*9/16))] max-h-[min(100%,calc(100vw*16/9))]">
+        <div className="w-full h-full max-w-[min(100%,calc(100vh*7/5))] max-h-[min(100%,calc(100vw*5/7))]">
           <video
             ref={videoRef}
             autoPlay
