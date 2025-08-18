@@ -10,8 +10,8 @@ interface CameraCaptureProps {
 
 // Pokemon card aspect ratio is 5:7 (width:height)
 const CARD_ASPECT_RATIO = 5 / 7;
-const FOCUS_AREA_WIDTH = 0.7; // 70% of video width
-const FOCUS_AREA_HEIGHT = 0.98; // 98% of video height - matches 5:7 aspect ratio (0.7/0.98 ≈ 0.714)
+const FOCUS_AREA_WIDTH = 0.65; // 65% of video width
+const FOCUS_AREA_HEIGHT = 0.3; // 30% of video height - fits comfortably within display
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -154,13 +154,25 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
       const focusXDisplay = (displayWidth - focusWidthDisplay) / 2;
       const focusYDisplay = (displayHeight - focusHeightDisplay) / 2;
 
+      console.log('📸 CAPTURE DEBUG:');
+      console.log('  - FOCUS_AREA_WIDTH constant:', FOCUS_AREA_WIDTH, '(should be 0.65)');
+      console.log('  - FOCUS_AREA_HEIGHT constant:', FOCUS_AREA_HEIGHT, '(should be 0.3)');
+      console.log('  - Display dimensions:', `${displayWidth}x${displayHeight}`);
+      console.log('  - Focus area display dimensions:', `${focusWidthDisplay}x${focusHeightDisplay}`);
+      console.log('  - Focus area display position:', `${focusXDisplay},${focusYDisplay}`);
+      console.log('  - Focus area as percentage of display:', `${(focusWidthDisplay/displayWidth*100).toFixed(1)}% x ${(focusHeightDisplay/displayHeight*100).toFixed(1)}%`);
+      console.log('  - Expected focus height with 0.3:', displayHeight * 0.3);
+      console.log('  - Actual focus height:', focusHeightDisplay);
+
       // Convert display coordinates to intrinsic coordinates
       const scale = displayHeight / intrinsicHeight;
       const scaledIntrinsicWidth = intrinsicWidth * scale;
       const offsetX = (scaledIntrinsicWidth - displayWidth) / 2;
 
       const focusX = focusXDisplay / scale + offsetX / scale;
-      const focusY = focusYDisplay / scale;
+      // Ensure focus area stays within display bounds
+      const maxFocusY = intrinsicHeight - focusHeightDisplay / scale;
+      const focusY = Math.min(focusYDisplay / scale, maxFocusY);
       const focusWidth = focusWidthDisplay / scale;
       const focusHeight = focusHeightDisplay / scale;
 
@@ -332,6 +344,19 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
           )}
           {isVideoReady && (
             <div className="absolute inset-0 bg-black/50">
+              {(() => {
+                const focusWidth = FOCUS_AREA_WIDTH * 100;
+                const focusHeight = FOCUS_AREA_HEIGHT * 100;
+                console.log('🔍 FOCUS AREA DEBUG:');
+                console.log('  - FOCUS_AREA_WIDTH constant:', FOCUS_AREA_WIDTH);
+                console.log('  - FOCUS_AREA_HEIGHT constant:', FOCUS_AREA_HEIGHT);
+                console.log('  - Calculated width:', focusWidth + '%');
+                console.log('  - Calculated height:', focusHeight + '%');
+                console.log('  - Video element dimensions:', videoRef.current ? `${videoRef.current.offsetWidth}x${videoRef.current.offsetHeight}` : 'N/A');
+                console.log('  - Video intrinsic dimensions:', videoRef.current ? `${videoRef.current.videoWidth}x${videoRef.current.videoHeight}` : 'N/A');
+                console.log('  - Container dimensions:', videoRef.current?.parentElement ? `${videoRef.current.parentElement.offsetWidth}x${videoRef.current.parentElement.offsetHeight}` : 'N/A');
+                return null;
+              })()}
               <div
                 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                 style={{
