@@ -10,8 +10,8 @@ interface CameraCaptureProps {
 
 // Pokemon card aspect ratio is 5:7 (width:height)
 const CARD_ASPECT_RATIO = 5 / 7;
-const FOCUS_AREA_WIDTH = 0.75; // 75% of video width - good margin around card
 const FOCUS_AREA_HEIGHT = 0.7; // 70% of video height - leaves space for capture button
+const FOCUS_AREA_WIDTH = 0.7 * (5/7); // 50% of video width - maintains 5:7 aspect ratio
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
