@@ -17,10 +17,10 @@ const Index = () => {
   const navigate = useNavigate();
   const { fetchLibrary } = useCardApi();
   
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentMode, setCurrentMode] = useState<'menu' | 'camera' | 'upload' | 'crop'>('menu');
+  const [currentMode, setCurrentMode] = useState<'menu' | 'upload' | 'crop'>('menu');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropType>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | PercentCrop>();
@@ -138,41 +138,9 @@ const Index = () => {
     setCurrentMode('menu');
   }, []);
 
-  const handleScanCard = async () => {
-    if (!capturedImage) return;
-    
-    setIsLoading(true);
-    try {
-      const imageBlob = CardApiService.dataURLToBlob(capturedImage);
-      const result = await CardApiService.scanCard(imageBlob);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to scan card');
-      }
-      
-      if (result.cardData) {
-        setCardData(result.cardData);
-      } else {
-        throw new Error('No card data received');
-      }
-    } catch (error) {
-      console.error('Error scanning card:', error);
-      alert(error instanceof Error ? error.message : 'Failed to scan card. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const handleRetake = () => {
-    setCapturedImage(null);
-    setCardData(null);
-  };
 
-  const handleNewScan = () => {
-    setCapturedImage(null);
-    setCardData(null);
-    setCurrentMode('menu');
-  };
+
 
   const handleBackToMenu = () => {
     setCurrentMode('menu');
@@ -247,17 +215,7 @@ const Index = () => {
         {/* Main Content - Scrollable */}
         <div className="flex-1 min-h-0 overflow-auto p-4">
           <div className="w-full max-w-sm mx-auto space-y-3 py-4">
-            {/* Scan Card */}
-            <button
-              onClick={() => setCurrentMode('camera')}
-              className="w-full bg-white/15 backdrop-blur-md rounded-3xl p-6 text-center hover:bg-white/25 transition-all duration-300 border border-white/20 hover:border-white/40 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
-            >
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                <Camera className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Scan Card</h3>
-              <p className="text-blue-100 text-sm">Use camera to capture card</p>
-            </button>
+
 
             {/* Upload Image */}
             <button
@@ -309,46 +267,7 @@ const Index = () => {
 
 
 
-  // Show camera capture
-  if (currentMode === 'camera') {
-    return (
-      <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex-none text-center py-6 px-4">
-          <div className="mb-2">
-            <span className="text-3xl">📱</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-1">
-            PokéScan
-          </h1>
-          <p className="text-blue-100 text-sm font-medium">
-            Position your card in the frame
-          </p>
-        </div>
 
-        {/* Camera Container */}
-        <div className="flex-1 flex items-center justify-center p-4 min-h-0 overflow-hidden">
-          <div className="w-full max-w-md h-full flex flex-col min-h-0 overflow-hidden">
-            {/* Navigation */}
-            <div className="flex-none bg-black/20 backdrop-blur-sm p-4 rounded-t-2xl border-b border-white/10">
-              <button
-                onClick={handleBackToMenu}
-                className="flex items-center gap-2 text-blue-200 hover:text-white transition-colors duration-200 text-sm font-medium"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Menu
-              </button>
-            </div>
-            
-            {/* Camera */}
-            <div className="flex-1 min-h-0 rounded-b-2xl overflow-hidden">
-              <CameraCapture onImageCapture={handleImageCapture} />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Show crop interface for uploaded image
   if (currentMode === 'crop' && uploadedImage) {
@@ -415,72 +334,7 @@ const Index = () => {
     );
   }
 
-  // Show review and scan interface
-  if (capturedImage && !cardData) {
-    return (
-      <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex-none text-center py-6 px-4">
-          <div className="mb-2">
-            <span className="text-3xl">📱</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-1">
-            PokéScan
-          </h1>
-          <p className="text-blue-100 text-sm font-medium">
-            Review your capture
-          </p>
-        </div>
 
-        {/* Review Container */}
-        <div className="flex-1 flex items-center justify-center p-6 min-h-0 overflow-hidden">
-          <div className="w-full max-w-md">
-            <div className="bg-white/15 backdrop-blur-md rounded-3xl p-8 border border-white/20 shadow-2xl">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Review Your Capture
-                </h3>
-                <p className="text-blue-200 text-sm">
-                  Make sure your card is clearly visible
-                </p>
-              </div>
-              
-              <div className="relative rounded-2xl overflow-hidden mb-6 bg-white/10 border border-white/20">
-                <img 
-                  src={capturedImage} 
-                  alt="Captured card" 
-                  className="w-full max-w-[280px] mx-auto aspect-[3/4] object-contain p-4"
-                />
-              </div>
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={handleRetake}
-                  className="flex-1 bg-white/20 hover:bg-white/30 text-white py-3 px-4 rounded-2xl font-semibold transition-all duration-200 border border-white/30"
-                >
-                  Retake
-                </button>
-                <button
-                  onClick={handleScanCard}
-                  disabled={isLoading}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 text-white py-3 px-4 rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:shadow-none flex items-center justify-center"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                      Scanning...
-                    </>
-                  ) : (
-                    'Scan Card'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Show card details
   if (cardData) {
