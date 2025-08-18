@@ -22,6 +22,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentMode, setCurrentMode] = useState<'menu' | 'upload' | 'crop'>('menu');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropType>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | PercentCrop>();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,28 +108,53 @@ const Index = () => {
     setCrop(crop);
   }, []);
 
-  const handleCropComplete = useCallback(() => {
+  const handleCropComplete = useCallback(async () => {
     if (!uploadedImage || !completedCrop) return;
     const img = cropImageRef.current;
     const displayedWidth = img?.width;
     const displayedHeight = img?.height;
-    handleCropCompleteUtil(
-      uploadedImage,
-      completedCrop,
-      (croppedImageUrl) => {
-        // Cropped image ready
-        setUploadedImage(null);
-        setCurrentMode('menu');
-        setCrop(undefined);
-        setCompletedCrop(undefined);
-      },
-      (err) => {
-        console.error('Crop error:', err);
-        alert('Crop failed.');
-      },
-      displayedWidth,
-      displayedHeight
-    );
+    
+    setIsLoading(true);
+    try {
+      handleCropCompleteUtil(
+        uploadedImage,
+        completedCrop,
+        async (croppedImageUrl) => {
+          // Convert base64 to blob and scan the card
+          const response = await fetch(croppedImageUrl);
+          const imageBlob = await response.blob();
+          
+          // Call the API to scan the card
+          const result = await CardApiService.scanCard(imageBlob);
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to scan card');
+          }
+          
+          if (!result.cardData) {
+            throw new Error('No card data received');
+          }
+          
+          setCardData(result.cardData);
+          setCroppedImage(croppedImageUrl);
+          setUploadedImage(null);
+          setCurrentMode('crop');
+          setCrop(undefined);
+          setCompletedCrop(undefined);
+        },
+        (err) => {
+          console.error('Crop error:', err);
+          alert('Crop failed.');
+        },
+        displayedWidth,
+        displayedHeight
+      );
+    } catch (error) {
+      console.error('Error scanning card:', error);
+      alert(error instanceof Error ? error.message : 'Failed to scan card. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   }, [uploadedImage, completedCrop]);
 
   const handleCropRetake = useCallback(() => {
@@ -146,6 +172,7 @@ const Index = () => {
     setCurrentMode('menu');
 
     setCardData(null);
+    setCroppedImage(null);
     setUploadedImage(null);
     setCrop(undefined);
     setCompletedCrop(undefined);
@@ -323,10 +350,17 @@ const Index = () => {
             </button>
             <button
               onClick={handleCropComplete}
-              disabled={!completedCrop}
+              disabled={!completedCrop || isLoading}
               className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              Use Crop
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  Scanning...
+                </>
+              ) : (
+                'Use Crop'
+              )}
             </button>
           </div>
         </div>
@@ -353,7 +387,7 @@ const Index = () => {
           <div className="w-full max-w-md h-full flex flex-col min-h-0 overflow-hidden">
             <CardDetails 
               cardData={cardData} 
-              capturedImage={null}
+              capturedImage={croppedImage}
               onNewScan={() => setCurrentMode('menu')}
               inLibrary={inLibrary}
               onAddToLibrary={handleAddToLibrary}

@@ -48,7 +48,7 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
           
           {/* Reference Image */}
           <div className="flex flex-col">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Reference</h4>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Identified Card</h4>
             <div className="flex-1 rounded-2xl overflow-hidden border-2 border-green-200 flex items-center justify-center bg-gray-50 shadow-sm">
               <img 
                 src={cardData.imageUrl} 
