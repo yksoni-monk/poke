@@ -4,12 +4,12 @@ import { CardData } from '../types/card';
 interface CardDetailsProps {
   cardData: CardData;
   capturedImage: string | null;
-  onNewScan: () => void;
+  onBackToHome: () => void;
   inLibrary?: boolean;
   onAddToLibrary?: () => void;
 }
 
-const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNewScan, inLibrary, onAddToLibrary }) => {
+const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onBackToHome, inLibrary, onAddToLibrary }) => {
   const formatPrice = (price: number | null, currency: string) => {
     if (price === null) return 'Price not available';
     return new Intl.NumberFormat('en-US', {
@@ -126,7 +126,7 @@ const CardDetails: React.FC<CardDetailsProps> = ({ cardData, capturedImage, onNe
       <div className="sticky bottom-0 left-0 right-0 bg-white p-6 z-10 border-t border-gray-200 shadow-lg">
         <div className="flex gap-4">
           <button
-            onClick={onNewScan}
+            onClick={onBackToHome}
             className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-6 rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
           >
             Back to Home

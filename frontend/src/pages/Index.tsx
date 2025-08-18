@@ -20,7 +20,7 @@ const Index = () => {
 
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentMode, setCurrentMode] = useState<'menu' | 'upload' | 'crop'>('menu');
+  const [currentMode, setCurrentMode] = useState<'menu' | 'upload' | 'crop' | 'details'>('menu');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropType>();
@@ -138,7 +138,7 @@ const Index = () => {
           setCardData(result.cardData);
           setCroppedImage(croppedImageUrl);
           setUploadedImage(null);
-          setCurrentMode('crop');
+          setCurrentMode('details');
           setCrop(undefined);
           setCompletedCrop(undefined);
         },
@@ -371,7 +371,7 @@ const Index = () => {
 
 
   // Show card details
-  if (cardData) {
+  if (currentMode === 'details' && cardData) {
     const inLibrary = libraryIds.includes(cardData.id);
     return (
       <div className="h-dvh bg-gradient-to-br from-blue-900 via-purple-900 to-purple-800 flex flex-col overflow-hidden">
@@ -388,7 +388,11 @@ const Index = () => {
             <CardDetails 
               cardData={cardData} 
               capturedImage={croppedImage}
-              onNewScan={() => setCurrentMode('menu')}
+              onBackToHome={() => {
+                setCurrentMode('menu');
+                setCardData(null);
+                setCroppedImage(null);
+              }}
               inLibrary={inLibrary}
               onAddToLibrary={handleAddToLibrary}
             />
