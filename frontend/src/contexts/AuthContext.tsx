@@ -73,12 +73,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Check auth when session context changes
+  // Check auth when session context changes, but only if there's actually a session
   useEffect(() => {
-    if (!sessionContext.loading) {
+    if (!sessionContext.loading && sessionContext.userId) {
+      // Only check auth if there's actually a user session
       checkAuth();
+    } else if (!sessionContext.loading && !sessionContext.userId) {
+      // If no session, just set loading to false without making API calls
+      setIsLoading(false);
     }
-  }, [sessionContext.loading]);
+  }, [sessionContext.loading, sessionContext.userId]);
 
   const signIn = async (email: string, userData?: any) => {
     setIsLoading(true);
