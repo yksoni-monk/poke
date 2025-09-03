@@ -25,6 +25,7 @@ const Index = () => {
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropType>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | PercentCrop>();
+  const [useAspectRatio, setUseAspectRatio] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropImageRef = useRef<HTMLImageElement | null>(null);
   const [libraryIds, setLibraryIds] = useState<string[]>([]);
@@ -91,20 +92,15 @@ const Index = () => {
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
-    // Create a centered crop with 5:7 aspect ratio
-    const crop = centerCrop(
-      makeAspectCrop(
-        {
-          unit: '%',
-          width: 90,
-        },
-        CARD_ASPECT_RATIO,
-        naturalWidth,
-        naturalHeight,
-      ),
-      naturalWidth,
-      naturalHeight,
-    );
+    
+    // Start with a free crop (no aspect ratio constraint) for better handling of images with large borders
+    const crop = {
+      unit: '%' as const,
+      x: 10,
+      y: 10,
+      width: 80,
+      height: 80,
+    };
     setCrop(crop);
   }, []);
 
@@ -182,8 +178,44 @@ const Index = () => {
     setUploadedImage(null);
     setCrop(undefined);
     setCompletedCrop(undefined);
+    setUseAspectRatio(false);
     setCurrentMode('menu');
   }, []);
+
+  const handleToggleAspectRatio = useCallback(() => {
+    setUseAspectRatio(!useAspectRatio);
+    // Reset crop when switching modes to avoid confusion
+    if (uploadedImage && cropImageRef.current) {
+      const { naturalWidth, naturalHeight } = cropImageRef.current;
+      if (!useAspectRatio) {
+        // Switching to aspect ratio mode - create a centered 5:7 crop
+        const newCrop = centerCrop(
+          makeAspectCrop(
+            {
+              unit: '%',
+              width: 80,
+            },
+            CARD_ASPECT_RATIO,
+            naturalWidth,
+            naturalHeight,
+          ),
+          naturalWidth,
+          naturalHeight,
+        );
+        setCrop(newCrop);
+      } else {
+        // Switching to free crop mode - create a square crop
+        const newCrop = {
+          unit: '%' as const,
+          x: 10,
+          y: 10,
+          width: 80,
+          height: 80,
+        };
+        setCrop(newCrop);
+      }
+    }
+  }, [useAspectRatio]);
 
 
 
@@ -331,12 +363,26 @@ const Index = () => {
               <ArrowLeft className="w-5 h-5" />
               Back to Menu
             </button>
-            {isLoading && (
-              <div className="flex items-center gap-2 text-green-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-400 border-t-transparent"></div>
-                <span className="text-sm font-medium">Processing...</span>
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {!isLoading && (
+                <button
+                  onClick={handleToggleAspectRatio}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                    useAspectRatio
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {useAspectRatio ? '5:7 Ratio' : 'Free Crop'}
+                </button>
+              )}
+              {isLoading && (
+                <div className="flex items-center gap-2 text-green-400">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-400 border-t-transparent"></div>
+                  <span className="text-sm font-medium">Processing...</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -351,6 +397,8 @@ const Index = () => {
               </div>
             </div>
           )}
+          
+
           <ReactCrop
             crop={crop}
             onChange={(_, percentCrop) => setCrop(percentCrop)}
@@ -358,7 +406,7 @@ const Index = () => {
               console.log('ReactCrop onComplete args:', pixelCrop, percentCrop);
               setCompletedCrop(percentCrop); // Use percent crop
             }}
-            aspect={CARD_ASPECT_RATIO}
+            aspect={useAspectRatio ? CARD_ASPECT_RATIO : undefined}
             minWidth={100}
             minHeight={100}
             keepSelection
