@@ -115,40 +115,61 @@ const Index = () => {
     const displayedHeight = img?.height;
     
     setIsLoading(true);
+    
+    // Add tactile feedback for mobile devices
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50); // Short vibration for button press
+    }
+    
+    // Add another vibration after a short delay to indicate processing started
+    setTimeout(() => {
+      if ('vibrate' in navigator) {
+        navigator.vibrate(30); // Subtle vibration to indicate processing
+      }
+    }, 100);
+    
     try {
-      handleCropCompleteUtil(
-        uploadedImage,
-        completedCrop,
-        async (croppedImageUrl) => {
-          // Convert base64 to blob and scan the card
-          const response = await fetch(croppedImageUrl);
-          const imageBlob = await response.blob();
-          
-          // Call the API to scan the card
-          const result = await CardApiService.scanCard(imageBlob);
-          
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to scan card');
-          }
-          
-          if (!result.cardData) {
-            throw new Error('No card data received');
-          }
-          
-          setCardData(result.cardData);
-          setCroppedImage(croppedImageUrl);
-          setUploadedImage(null);
-          setCurrentMode('details');
-          setCrop(undefined);
-          setCompletedCrop(undefined);
-        },
-        (err) => {
-          console.error('Crop error:', err);
-          alert('Crop failed.');
-        },
-        displayedWidth,
-        displayedHeight
-      );
+      await new Promise<void>((resolve, reject) => {
+        handleCropCompleteUtil(
+          uploadedImage,
+          completedCrop,
+          async (croppedImageUrl) => {
+            try {
+              // Convert base64 to blob and scan the card
+              const response = await fetch(croppedImageUrl);
+              const imageBlob = await response.blob();
+              
+              // Call the API to scan the card
+              const result = await CardApiService.scanCard(imageBlob);
+              
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to scan card');
+              }
+              
+              if (!result.cardData) {
+                throw new Error('No card data received');
+              }
+              
+              setCardData(result.cardData);
+              setCroppedImage(croppedImageUrl);
+              setUploadedImage(null);
+              setCurrentMode('details');
+              setCrop(undefined);
+              setCompletedCrop(undefined);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          },
+          (err) => {
+            console.error('Crop error:', err);
+            alert('Crop failed.');
+            reject(err);
+          },
+          displayedWidth,
+          displayedHeight
+        );
+      });
     } catch (error) {
       console.error('Error scanning card:', error);
       alert(error instanceof Error ? error.message : 'Failed to scan card. Please try again.');
@@ -302,17 +323,34 @@ const Index = () => {
       <div className="h-dvh bg-black flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-none bg-black/90 backdrop-blur-sm p-6 border-b border-white/10">
-          <button
-            onClick={handleCropRetake}
-            className="flex items-center gap-3 text-white hover:text-blue-300 transition-colors duration-200 text-base font-medium"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Menu
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleCropRetake}
+              className="flex items-center gap-3 text-white hover:text-blue-300 transition-colors duration-200 text-base font-medium"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to Menu
+            </button>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-green-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-400 border-t-transparent"></div>
+                <span className="text-sm font-medium">Processing...</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Crop Area */}
         <div className="flex-1 relative overflow-hidden">
+          {isLoading && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4"></div>
+                <p className="text-white font-medium">Scanning your card...</p>
+                <p className="text-white/70 text-sm mt-2">This may take a few seconds</p>
+              </div>
+            </div>
+          )}
           <ReactCrop
             crop={crop}
             onChange={(_, percentCrop) => setCrop(percentCrop)}
@@ -332,7 +370,9 @@ const Index = () => {
               src={uploadedImage}
               onLoad={onImageLoad}
               alt="Uploaded card"
-              className="max-w-full max-h-full object-contain"
+              className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${
+                isLoading ? 'opacity-70' : 'opacity-100'
+              }`}
               style={{ touchAction: 'none' }}
             />
           </ReactCrop>
@@ -351,7 +391,15 @@ const Index = () => {
             <button
               onClick={handleCropComplete}
               disabled={!completedCrop || isLoading}
-              className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
+              className={`px-6 py-3 text-white rounded-2xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg disabled:cursor-not-allowed active:scale-95 transform touch-manipulation ${
+                isLoading 
+                  ? 'bg-green-700 animate-pulse' 
+                  : 'bg-green-600 hover:bg-green-500 active:bg-green-700 disabled:opacity-50 disabled:hover:bg-green-600'
+              }`}
+              style={{ 
+                minHeight: '48px', // Better touch target for mobile
+                WebkitTapHighlightColor: 'transparent' // Remove default mobile tap highlight
+              }}
             >
               {isLoading ? (
                 <>
